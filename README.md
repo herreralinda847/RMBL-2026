@@ -41,4 +41,4 @@ library(ggridges)
 ## Rendered output
 
 The rendered exploratory is 
-[here](https://github.com/n921c/envs193dd-final-project/blob/main/code/final-paper.pdf).
+[here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/exploratory-rmbl.pdf).
