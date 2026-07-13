@@ -33,6 +33,7 @@ library(ggridges)
 ## Data 
 
 ```{r}
+#| label: cleaning and wrangling
 #| message: false
 #| warning: false
 
@@ -61,8 +62,8 @@ tc_data <- read_csv(here("data", "TrailCreek_20260415_export20260630.csv"), show
          water_level = water_level_m,
          bp = barometric_pressure_k_pa) |> 
   mutate(date_time_parsed = mdy_hms(date_time), # telling r the date format
-         date_only = as_date(date_time_parsed)) |> # making a date column 
-  group_by(date_only) |> 
+         date = as_date(date_time_parsed)) |> # making a date column 
+  group_by(date) |> 
   summarise(avg_dp = mean(dp, na.rm = TRUE), # averaging the data based on the day
             avg_ap = mean(ap, na.rm = TRUE),
             avg_temp = mean(temp, na.rm = TRUE),
@@ -82,8 +83,8 @@ utc_data <- read_csv(here("data", "UTC_20260403_export20260630.csv"), show_col_t
          water_level = water_level_m,
          bp = barometric_pressure_k_pa) |> 
   mutate(date_time_parsed = mdy_hms(date_time), # telling r the date format
-         date_only = as_date(date_time_parsed)) |> # making a date column 
-  group_by(date_only) |> 
+         date = as_date(date_time_parsed)) |> # making a date column 
+  group_by(date) |> 
   summarise(avg_dp = mean(dp, na.rm = TRUE),  # averaging the data based on the day
             avg_ap = mean(ap, na.rm = TRUE),
             avg_temp = mean(temp, na.rm = TRUE),
@@ -95,6 +96,14 @@ utc_data <- read_csv(here("data", "UTC_20260403_export20260630.csv"), show_col_t
 
 ```
 
+
+```{r}
+#| label: merging datasets
+
+tc_utc_data <- merge(tc_data, utc_data, all = TRUE)
+
+isotope_data <- merge(tc_utc_data, tc_isotope, by = c("site", "date"))
+```
 
 
 
