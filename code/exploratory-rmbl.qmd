@@ -108,6 +108,8 @@ isotope_data <- merge(tc_utc_data, tc_isotope, by = c("site", "date")) # merging
 
 
 ```{r}
+#| message: false
+#| warning: false
 
 ggplot(isotope_data, aes(sample = lc_excess)) +
   stat_qq() +
@@ -119,6 +121,8 @@ ggplot(isotope_data, aes(sample = lc_excess)) +
 
 
 ```{r}
+#| message: false
+#| warning: false
 
 ggplot(data = isotope_data, aes(x = avg_water_level, y = lc_excess)) +
   geom_point(color = "dodgerblue", size = 2, alpha = 0.6) +
@@ -136,6 +140,8 @@ ggplot(data = isotope_data, aes(x = avg_water_level, y = lc_excess)) +
 ```
 
 ```{r}
+#| message: false
+#| warning: false
 
 ggplot(data = isotope_data, aes(x = delta_o, y = lc_excess, color = site)) +
   geom_point(size = 2.5, alpha = 0.7) +
@@ -155,6 +161,8 @@ ggplot(data = isotope_data, aes(x = delta_o, y = lc_excess, color = site)) +
 ```
 
 ```{r}
+#| message: false
+#| warning: false
 
 ggplot(data = isotope_data, 
        aes(x = date, 
@@ -186,6 +194,8 @@ ggplot(data = isotope_data,
 
 
 ```{r}
+#| message: false
+#| warning: false
 
 ggplot(data = isotope_data, 
        aes(x = date,
@@ -216,6 +226,8 @@ ggplot(data = isotope_data,
 ```
 
 ```{r}
+#| message: false
+#| warning: false
 
 ggplot(isotope_data, aes(x = delta_o, y = delta_d, color = site)) +
   geom_point(alpha = 0.7, size = 2) +
