@@ -18,9 +18,6 @@ library(janitor)
 library(snakecase)
 library(dplyr)
 
-# wrapping axis labels
-library(scales)
-
 # reading in .xlsx files
 library(readxl)
 
@@ -125,8 +122,8 @@ ggplot(isotope_data, aes(sample = lc_excess)) +
 #| warning: false
 
 ggplot(data = isotope_data, aes(x = avg_water_level, y = lc_excess)) +
-  geom_point(color = "dodgerblue", size = 2, alpha = 0.6) +
-  geom_smooth(method = "lm", color = "darkblue", fill = "lightblue", se = TRUE) +
+  geom_point(color = "dodgerblue", size = 2, alpha = 0.7) +
+  geom_smooth(method = "lm", color = "darkblue", fill = "darkblue", se = TRUE) +
   labs(
     title = "Relationship between Average Water Level and LC-excess",
     subtitle = "Analysis of isotope variations",
@@ -327,7 +324,4 @@ ggplot(isotope_data, aes(x = factor(month(date, label = TRUE, abbr = TRUE)), y =
   )
 
 ```
-
-
-
 

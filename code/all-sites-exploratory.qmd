@@ -1,0 +1,31 @@
+---
+title: "all-sites-exploratory"
+author: "Linda Herrera"
+format: typst
+---
+
+## Packages
+
+```{r}
+#| label: packages
+#| message: false
+#| warning: false
+
+# general use and cleaning
+library(tidyverse)
+library(here)
+library(janitor)
+library(snakecase)
+library(dplyr)
+
+# wrapping axis labels
+library(scales)
+
+# reading in .xlsx files
+library(readxl)
+
+# arranging plots
+library(patchwork)
+library(ggridges)
+
+```
