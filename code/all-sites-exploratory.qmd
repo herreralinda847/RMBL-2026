@@ -28,4 +28,457 @@ library(readxl)
 library(patchwork)
 library(ggridges)
 
+# gives p-values for mixed models
+library(lme4)
+library(lmerTest)
+
 ```
+
+
+## Data 
+
+```{r}
+#| label: cleaning and wrangling
+#| message: false
+#| warning: false
+
+# Trail Creek Isotope 
+compiled_isotope <- read_csv(here("data", "compiled_river_reach_isotope_data.csv"), show_col_types = FALSE) |> 
+  clean_names() |> # lowercase and underscores in column names
+  rename(sample = sample_name, # renaming columns to be shorter 
+         delta_d = processed_delta_d,
+         delta_d_std = processed_delta_d_stdev,
+         delta_o = processed_delta_18o,
+         delta_o_std = processed_delta_18o_stdev) |> 
+  mutate(date = mdy(date)) # telling r the date format
+
+trail_creek <- compiled_isotope |> 
+  filter(location == "tc")
+
+coal_creek <- compiled_isotope |> 
+  filter(location == "cc")
+
+italian_creek <- compiled_isotope |> 
+  filter(location == "ic")
+
+```
+
+## Exploratory Visuals with ALL Sites
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(data = compiled_isotope, aes(x = delta_o, y = lc_excess, color = location)) +
+  geom_point(size = 2.5, alpha = 0.7) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.15, linewidth = 1) + 
+  scale_color_manual(values = c("tc" = "turquoise3", "cc" = "sienna2", "ic" = "violetred2")) +
+  labs(
+    title = "Line-Conditioned Excess (lc-excess) vs. Delta 18O",
+    subtitle = "Comparing evaporation signals between sites",
+    x = expression(paste(delta, " "^18, "O (\u2030)")), # Formats as δ18O (‰)
+    y = "lc-excess (\u2030)",
+    color = "Site Location") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "right",
+        panel.grid.minor = element_blank())
+
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(data = compiled_isotope, 
+       aes(x = date, 
+           y = lc_excess, 
+           color = location, 
+           group = location)) +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "gray50", 
+             size = 0.8) +
+  geom_point(size = 2.5, 
+             alpha = 0.8) +
+  geom_line(size = 1, 
+            alpha = 0.7) +
+  labs(title = "Time-Series of Line-Conditioned Excess (lc-excess)",
+       subtitle = "Values below 0 indicate potential evaporative enrichment",
+       x = "Sampling Date",
+       y = "lc-excess (\u2030)",
+       color = "Site") +
+  ylim(-8,5) +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(data = compiled_isotope, 
+       aes(x = date, 
+           y = d_excess, 
+           color = location, 
+           group = location)) +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "gray50", 
+             size = 0.8) +
+  geom_point(size = 2.5, 
+             alpha = 0.8) +
+  geom_line(size = 1, 
+            alpha = 0.7) + 
+  labs(title = "Time-Series of Deuterium Excess (d-excess)",
+       subtitle = "Values below 0 indicate potential evaporative enrichment",
+       x = "Sampling Date",
+       y = "d-excess (\u2030)",
+       color = "Site") +
+  ylim(-3,15) +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+
+```
+
+```{r}
+#| label: timeseries
+#| message: false
+#| warning: false
+
+ggplot(compiled_isotope, aes(x = date, y = lc_excess, color = site)) +
+  geom_line(linewidth = 0.5) +
+  geom_point(size = 1.5) +
+  labs(
+    title = "Temporal Variations in Line-Conditioned Excess",
+    x = "Date",
+    y = "lc-excess (‰)",
+    color = "Site"
+  ) +
+  facet_wrap(~site, scales = "free_y") +  # Compare across sites easily
+  theme_minimal() + 
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+```
+
+```{r}
+#| label: timeseries
+#| message: false
+#| warning: false
+
+ggplot(compiled_isotope, aes(x = date, y = lc_excess, color = location)) +
+  geom_line(linewidth = 0.5) +
+  geom_point(size = 1.5) +
+  labs(
+    title = "Temporal Variations in Line-Conditioned Excess",
+    x = "Date",
+    y = "lc-excess (‰)",
+    color = "Site"
+  ) +
+  facet_wrap(~site, scales = "free_y") +  # Compare across sites easily
+  theme_minimal() + 
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+```
+
+```{r}
+#| label: boxplot-monthly
+#| message: false
+#| warning: false
+
+ggplot(compiled_isotope, aes(x = factor(month(date, label = TRUE, abbr = TRUE)), y = lc_excess)) +
+  geom_boxplot(aes(fill = factor(month(date))), show.legend = FALSE) +
+  facet_wrap(~location, scales = "free_y") +
+ labs(
+    title = "Monthly Variations in Evaporative Fraction (lc-excess) Across Study Sites",
+    subtitle = "Seasonal isotopic shifts indicating changes in local evaporation-condensation histories",
+    x = "Month",
+    y = "lc-excess (‰)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+    strip.text = element_text(face = "bold", size = 11), # Emphasize site names
+    axis.text.x = element_text(angle = 45, hjust = 1)   # Tilt month labels if they overlap
+  )
+
+```
+
+## Exploratory Visuals of Trail Creek
+
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(data = trail_creek, aes(x = delta_o, y = lc_excess, color = site)) +
+  geom_point(size = 2.5, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, alpha = 0.15, linewidth = 1) +
+  labs(
+    title = "Line-Conditioned Excess (lc-excess) vs. Delta 18O",
+    subtitle = "Comparing evaporation signals between sites",
+    x = expression(paste(delta, " "^18, "O (\u2030)")), # Formats as δ18O (‰)
+    y = "lc-excess (\u2030)",
+    color = "Site Location") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "right",
+        panel.grid.minor = element_blank())
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(data = trail_creek, 
+       aes(x = date, 
+           y = lc_excess)) +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "gray50", 
+             size = 0.8) +
+  geom_point(size = 2.5, 
+             alpha = 0.8) +
+  geom_line(size = 1, 
+            alpha = 0.7) +
+  labs(title = "Time-Series of Line-Conditioned Excess (lc-excess)",
+       subtitle = "Values below 0 indicate potential evaporative enrichment",
+       x = "Sampling Date",
+       y = "lc-excess (\u2030)",
+       color = "Site") +
+  ylim(-8,5) +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(data = trail_creek, 
+       aes(x = date, 
+           y = d_excess)) +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "gray50", 
+             size = 0.8) +
+  geom_point(size = 2.5, 
+             alpha = 0.8) +
+  geom_line(size = 1, 
+            alpha = 0.7) + 
+  labs(title = "Time-Series of Deuterium Excess (d-excess)",
+       subtitle = "Values below 0 indicate potential evaporative enrichment",
+       x = "Sampling Date",
+       y = "d-excess (\u2030)",
+       color = "Site") +
+  ylim(-3,15) +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+
+```
+
+
+```{r}
+#| label: timeseries
+#| message: false
+#| warning: false
+
+ggplot(trail_creek, aes(x = date, y = lc_excess, color = site)) +
+  geom_line(linewidth = 0.5) +
+  geom_point(size = 1.5) +
+  labs(
+    title = "Temporal Variations in Line-Conditioned Excess",
+    x = "Date",
+    y = "lc-excess (‰)",
+    color = "Site"
+  ) +
+  facet_wrap(~site, scales = "free_y") +  # Compare across sites easily
+  theme_minimal() + 
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+```
+
+
+```{r}
+#| label: boxplot-monthly
+#| message: false
+#| warning: false
+
+ggplot(trail_creek, aes(x = factor(month(date, label = TRUE, abbr = TRUE)), y = lc_excess)) +
+  geom_boxplot(aes(fill = factor(month(date))), show.legend = FALSE) +
+  facet_wrap(~location, scales = "free_y") +
+ labs(
+    title = "Monthly Variations in Evaporative Fraction (lc-excess) Across Study Sites",
+    subtitle = "Seasonal isotopic shifts indicating changes in local evaporation-condensation histories",
+    x = "Month",
+    y = "lc-excess (‰)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+    strip.text = element_text(face = "bold", size = 11), # Emphasize site names
+    axis.text.x = element_text(angle = 45, hjust = 1)   # Tilt month labels if they overlap
+  )
+
+```
+
+```{r}
+# ───────────────────────────────────────────────
+# 1. Dual-isotope plot (δ18O vs δD) with LMWL reference
+# ───────────────────────────────────────────────
+
+# Trail Creek LMWL calculated from OPIC
+
+lmwl_slope <- 7.94
+lmwl_intercept <- 9.37 
+
+ggplot(compiled_isotope, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(size = 2.5, alpha = 0.7) +
+  geom_abline(slope = lmwl_slope, intercept = lmwl_intercept, 
+              linetype = "dashed", color = "black", linewidth = 0.8) +
+  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek", 
+                                                           cc = "Coal Creek", 
+                                                           ic = "Italian Creek"))) +
+  labs(title = "Dual Isotope Plot: \u03b418O vs \u03b4D",
+       subtitle = "Dashed line = Trail Creek LMWL",
+       x = expression(paste(delta^18, "O (\u2030)")),
+       y = expression(paste(delta, "D (\u2030)")),
+       color = "Reach") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "top")
+
+```
+
+```{r}
+# ───────────────────────────────────────────────
+# 2. lc-excess boxplot by reach, faceted by watershed
+# ───────────────────────────────────────────────
+
+ggplot(compiled_isotope, aes(x = site, y = lc_excess, fill = site)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = 21) +
+  geom_jitter(width = 0.15, alpha = 0.4, size = 1.5) +
+  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek", 
+                                                           cc = "Coal Creek", 
+                                                           ic = "Italian Creek"))) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  labs(title = "lc-excess by Reach Position",
+       subtitle = "Values below 0 indicate evaporative enrichment",
+       x = "Reach", y = "lc-excess (\u2030)") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "none")
+
+
+```
+
+
+
+
+
+```{r}
+# ───────────────────────────────────────────────
+# 3. Time series of lc-excess across season, colored by reach, faceted by watershed
+# ───────────────────────────────────────────────
+
+ggplot(compiled_isotope, aes(x = date, y = lc_excess, color = site, group = interaction(site, location))) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_point(size = 2, alpha = 0.8) +
+  geom_line(alpha = 0.6) +
+  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek", 
+                                                           cc = "Coal Creek", 
+                                                           ic = "Italian Creek"))) +
+  labs(title = "Seasonal Trends in lc-excess",
+       subtitle = "2025 low-snowpack year",
+       x = "Sampling Date", y = "lc-excess (\u2030)", color = "Reach") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "top",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+
+
+# ───────────────────────────────────────────────
+# 4. Mixed model: lc-excess ~ site * location, with sample as random effect if repeated
+# ───────────────────────────────────────────────
+
+# Fixed-effects two-way ANOVA version (simpler, if no repeated measures structure)
+model_anova <- aov(lc_excess ~ site * location, data = compiled_isotope)
+summary(model_anova)
+
+# Mixed model version — use this if you have repeated sampling at the same points over time
+# (treats date or sample as a random effect to account for non-independence)
+model_mixed <- lmer(lc_excess ~ site * location + (1 | date), data = compiled_isotope)
+summary(model_mixed)
+anova(model_mixed)  # Type III tests via lmerTest
+
+# Quick check of interaction effect visually
+ggplot(compiled_isotope, aes(x = location, y = lc_excess, color = site, group = site)) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  labs(title = "Interaction Plot: Reach \u00d7 Watershed",
+       x = "Watershed", y = "Mean lc-excess (\u2030)", color = "Reach") +
+  theme_bw()
+
+
+
+```
+
+```{r}
+
+# ───────────────────────────────────────────────
+# 5. Paired upstream-downstream delta (Δlc-excess) bar chart across watersheds
+# ───────────────────────────────────────────────
+
+delta_summary <- compiled_isotope %>%
+  group_by(location, site) %>%
+  summarize(mean_lc = mean(lc_excess, na.rm = TRUE),
+            se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
+            .groups = "drop") %>%
+  pivot_wider(names_from = site, values_from = c(mean_lc, se_lc))
+
+# NOTE: adjust "up"/"down" below to match your actual site labels (e.g. "upstream"/"downstream")
+delta_summary <- delta_summary %>%
+  mutate(delta_lc = mean_lc_down - mean_lc_up,
+         se_delta = sqrt(se_lc_down^2 + se_lc_up^2))  # propagated error
+
+ggplot(delta_summary, aes(x = location, y = delta_lc, fill = location)) +
+  geom_col(alpha = 0.8) +
+  geom_errorbar(aes(ymin = delta_lc - se_delta, ymax = delta_lc + se_delta), width = 0.2) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  scale_x_discrete(labels = c(tc = "Trail Creek", cc = "Coal Creek", ic = "Italian Creek")) +
+  scale_fill_manual(values = c("tc" = "turquoise3", "cc" = "sienna2", "ic" = "#976898")) +
+  labs(title = "Downstream \u2212 Upstream \u0394lc-excess by Watershed",
+       subtitle = "Positive values = downstream enrichment relative to upstream",
+       x = "Watershed", y = "\u0394lc-excess (\u2030)") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", size = 14))
+
+
+
+```
+
+## Exploratory Visuals of Coal Creek
+
+
+## Exploratory Visuals of Italian Creek
+
+
+
+
