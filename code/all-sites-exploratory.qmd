@@ -26,6 +26,9 @@ library(lme4)
 library(lmerTest)
 library(knitr)
 library(rmarkdown)
+library(viridis)
+library(viridisLite)
+library(wesanderson)
 
 library(ragg)
 
@@ -70,11 +73,16 @@ Line-Conditioned Excess (lc-excess) vs Delta 18O
 ```{r}
 #| message: false
 #| warning: false
+#| fig-height: 5
+#| fig-width: 6
 
 ggplot(data = compiled_isotope, aes(x = delta_o, y = lc_excess, color = location)) +
   geom_point(size = 2.5, alpha = 0.7) +
   geom_smooth(method = "lm", se = TRUE, alpha = 0.15, linewidth = 1) + 
-  scale_color_manual(values = c("tc" = "turquoise3", "cc" = "sienna2", "ic" = "violetred2", "utc" = "blue")) +
+  scale_color_manual(
+    values = c("tc" = "royalblue2", "cc" = "turquoise3", "ic" = "deeppink2", "utc" = "orangered2"),
+    labels = c("cc" = "Coal Creek", "ic" = "Italian Creek", "tc" = "Trail Creek", "utc" = "Upper Trail Creek")
+  ) +
   labs(
     title = "Line-Conditioned Excess (lc-excess) vs. Delta 18O",
     subtitle = "Comparing evaporation signals between sites",
@@ -83,7 +91,7 @@ ggplot(data = compiled_isotope, aes(x = delta_o, y = lc_excess, color = location
     color = "Site Location") +
   theme_bw() +
   theme(plot.title = element_text(face = "bold", size = 14),
-        legend.position = "right",
+        legend.position = "bottom",
         panel.grid.minor = element_blank())
 
 ```
@@ -406,79 +414,67 @@ ggplot(compiled_isotope, aes(x = site, y = lc_excess, fill = site)) +
 Time series of lc-excess across season, colored by reach, faceted by watershed
 
 ```{r}
-#| label: time
+#| label: seasonal-trends-in-lcexcess
 #| message: false
 #| warning: false
-
 
 ggplot(compiled_isotope, aes(x = date, y = lc_excess, color = site, group = interaction(site, location))) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   geom_point(size = 2, alpha = 0.8) +
   geom_line(alpha = 0.6) +
   facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek", 
-                                                           cc = "Coal Creek", 
-                                                           ic = "Italian Creek"))) +
+                                                         cc = "Coal Creek",
+                                                         ic = "Italian Creek"))) +
+  scale_x_date(date_labels = "%b %d") +
+  scale_color_manual(values = wes_palette("FantasticFox1", n = length(unique(compiled_isotope$site)),
+                                          type = "continuous"),
+                     labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" =
+                                "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6", "italian_1" = "IT-1",
+                                "italian_2" = "IT-2", "italian_3" = "IT-3", "italian_4" = "IT-4",
+                                "italian_5" = "IT-5","tc_isco" = "TC-ISCO", "tc_1" = "TC-1", "tc_15"
+                                = "TC-1.5", "tc_2" = "TC-2", "tc_3" = "TC-3", "tc_ds" = "TC-DS",
+                                "tc_mid" = "TC-Mid", "tc_us" = "TC-US", "utc_isco" = "UTC-ISCO")) +
   labs(title = "Seasonal Trends in lc-excess",
        subtitle = "2025 low-snowpack year",
        x = "Sampling Date", y = "lc-excess (\u2030)", color = "Reach") +
   theme_bw() +
   theme(plot.title = element_text(face = "bold", size = 14),
-        legend.position = "top",
+        legend.position = "right",
         axis.text.x = element_text(angle = 45, hjust = 1))
-```
 
-Mixed model: lc-excess ~ site * location, with sample as random effect if repeated
-
-```{r}
-#| label: interaction plot
-#| message: false
-#| warning: false
-
-# Mixed model
-model_mixed <- lmer(lc_excess ~ site * location + (1 | date), data = compiled_isotope)
-summary(model_mixed)
-anova(model_mixed)  # Type III tests via lmerTest
-
-ggplot(compiled_isotope, aes(x = location, y = lc_excess, color = site, group = site)) +
-  stat_summary(fun = mean, geom = "point", size = 3) +
-  stat_summary(fun = mean, geom = "line", linewidth = 1) +
-  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
-  labs(title = "Interaction Plot: Reach \u00d7 Watershed",
-       x = "Watershed", y = "Mean lc-excess (\u2030)", color = "Reach") +
-  theme_bw()
 
 ```
 
-
 ```{r}
 
+# averaging the lc-excess and including standard error
 delta_summary <- compiled_isotope |> 
   group_by(site) |> 
-  summarize(
-    mean_lc = mean(lc_excess, na.rm = TRUE),
-    se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
-    .groups = "drop"
-  )
+  summarize(mean_lc = mean(lc_excess, na.rm = TRUE),
+            se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
+            .groups = "drop")
 
-
+# creating a plot to show the mean lc-excess of each site
 ggplot(delta_summary, aes(x = site, y = mean_lc, fill = site)) +
   geom_col(color = "black", width = 0.7) +
-  geom_errorbar(
-    aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc), 
-    width = 0.3, 
-    color = "black"
-  ) +
+  geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
+                width = 0.3,
+                color = "black") +
+  scale_x_discrete(limits = c("italian_1", "italian_2", "italian_3", "italian_4", "italian_5", "coal_1", "coal_2", "coal_3", "coal_4", "coal_5", "coal_6", "tc_isco", "tc_1", "tc_15", "tc_2", "tc_3", "utc_isco", "tc_ds", "tc_mid", "tc_us"),
+  labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" = "CC-4",
+             "coal_5" = "CC-5", "coal_6" = "CC-6", "italian_1" = "IT-1", "italian_2" = "IT-2",
+             "italian_3" = "IT-3", "italian_4" = "IT-4", "italian_5" = "IT-5",
+             "tc_isco" = "TC-ISCO", "tc_1" = "TC-1", "tc_15" = "TC-1.5", "tc_2" = "TC-2",
+             "tc_3" = "IT-3", "tc_ds" = "IT-DS", "tc_mid" = "TC-Mid", "tc_us" = "TC-US",
+             "utc_isco" = "UTC-ISCO")) +
+  scale_fill_viridis_d() + # color palette 
   theme_minimal() +
-  labs(
-    title = "Mean LC Excess by Site with Standard Error",
-    x = "Sampling Site",
-    y = "Mean LC Excess"
-  ) +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1), # Tilts labels so they don't overlap
-    legend.position = "none"
-  )
-
+  labs(title = "Mean LC Excess by Site with Standard Error",
+       x = "Sampling Site",
+       y = "Mean LC Excess") +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1), # tilt labels 
+        legend.position = "none")
 
 
 
@@ -487,60 +483,51 @@ ggplot(delta_summary, aes(x = site, y = mean_lc, fill = site)) +
 
 
 ```{r}
+#| label: gradient
+#| message: false
+#| warning: false
+#| fig-height: 5
+#| fig-width: 6
 
-# Build a lookup table of stream distances, then compute reach boundaries
-distances <- tibble(
-  site = c("TC-P3-US", "TC-P3-mid", "TC-P3-DS", "TC-BDA1",
-           "TC-BDA1.5", "TC-BDA2", "TC-BDA3"),
-  dist_m = c(57.6, 333, 654, 1160, 1620, 2240, 3150)
-) %>%
-  mutate(
-    xmax = dist_m,
-    xmin = lag(dist_m, default = 0)  # previous site's distance, 0 for first
-  )
+# Buildings a look up table of stream distances
+distances <- tibble(site = c("TC-P3-US", "TC-P3-mid", "TC-P3-DS", "TC-BDA1",
+                             "TC-BDA1.5", "TC-BDA2", "TC-BDA3"),
+                    dist_m = c(57.6, 333, 654, 1160, 1620, 2240, 3150)) |> 
+  mutate(xmax = dist_m,
+         xmin = lag(dist_m, default = 0)) # previous site's distance, 0 for first
 
-
-gradient_data_clean <- gradient_data %>%
-  select(site, normalized_stream_distance_m,
-         `Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`) %>%
-  pivot_longer(
-    cols = c(`Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`),
-    names_to = "date",
-    values_to = "gradient"
-  ) %>%
-  mutate(
-    date = case_when(
-      date == "Δlc-excess/Δx_6-24" ~ "2026-06-24",
-      date == "Δlc-excess/Δx_6-30" ~ "2026-06-30"
-    ),
-    gradient = as.numeric(gradient) 
-  ) %>%
-  left_join(distances %>% select(site, xmin, xmax), by = "site") %>%
-  mutate(
-    site = factor(site, levels = distances$site)
-  ) %>%
+# Creating a filtered data frame for lc-excess
+gradient_lc_clean <- gradient_data |>
+  select(site, normalized_stream_distance_m, `Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`) |> 
+  pivot_longer( cols = c(`Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`),
+                names_to = "date",
+                values_to = "gradient") |>
+  mutate(date = case_when(date == "Δlc-excess/Δx_6-24" ~ "2026-06-24",
+                          date == "Δlc-excess/Δx_6-30" ~ "2026-06-30"),
+         gradient = as.numeric(gradient)) |>
+  left_join(distances %>% select(site, xmin, xmax), by = "site") |> 
+  mutate(site = factor(site, levels = distances$site)) |>
   filter(!is.na(gradient))
 
-
-ggplot(gradient_data_clean) +
+# Gradient plot
+ggplot(gradient_lc_clean) +
   geom_rect(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = gradient),
-            fill = "#4C72B0", color = "black", linewidth = 0.3) +
-  geom_hline(yintercept = 0, color = "steelblue", linewidth = 0.4) +
+            fill = "royalblue2", color = "black", linewidth = 0.3) +
+  geom_hline(yintercept = 0, color = "royalblue2", linewidth = 0.4) +
   facet_wrap(~ date, nrow = 1) +
   scale_x_continuous(
     breaks = distances$dist_m,
-    labels = distances$site
-  ) +
-  labs(
-    x = "Normalized stream distance (m)",
-    y = expression(Delta*"lc-excess/"*Delta*"x")
-  ) +
-  theme_minimal(base_size = 11) +
-  theme(
-    panel.grid.minor = element_blank(),
-    strip.text = element_text(face = "bold"),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
+    labels = distances$site) +
+  labs(title = "Spatial variations in Δlc-excess/Δx across sampling dates",
+       x = "Normalized stream distance (m)",
+       y = expression(paste(Delta, "lc-excess / ", Delta, "x (ppb/km)"))) +
+  theme_bw(base_size = 11) +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        strip.text = element_text(face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+
 ```
 
 All reaches show lc-excess decreasing downstream, on both dates. Since lc-excess becoming more negative = more evaporative enrichment, this version says every single reach along Trail Creek is adding evaporative signal, with no recovery zones. That's a materially different story than "some reaches enrich, some reaches dilute" — it now reads as continuous, cumulative evaporative loss along the whole restored gradient.
