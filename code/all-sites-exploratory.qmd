@@ -41,7 +41,6 @@ library(ragg)
 #| message: false
 #| warning: false
 
-# Trail Creek Isotope 
 compiled_isotope <- read_csv(here("data", "compiled.csv"), show_col_types = FALSE) |> 
   clean_names() |> # lowercase and underscores in column names
   rename(sample = sample_name, # renaming columns to be shorter 
@@ -65,7 +64,7 @@ coal_creek <- compiled_isotope |>
   filter(site != "coal_3")
 
 coal_creek_all <- compiled_isotope |> 
-  filter(location %out% c("cc"))
+ filter(location %in% c("cc"))
 
 italian_creek <- compiled_isotope |> 
   filter(location == "ic")
@@ -481,13 +480,14 @@ distances <- tibble(site = c("TC-P3-US", "TC-P3-mid", "TC-P3-DS", "TC-BDA1",
          xmin = lag(dist_m, default = 0)) # previous site's distance, 0 for first
 
 # Creating a filtered data frame for lc-excess
-gradient_lc_clean <- gradient_data |>
-  select(site, normalized_stream_distance_m, `Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`) |> 
-  pivot_longer( cols = c(`Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`),
+gradient_lc_clean <- gradient_tc |>
+  select(site, normalized_stream_distance_m, `Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`, `Δlc-excess/Δx_7-15`) |> 
+  pivot_longer( cols = c(`Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`, `Δlc-excess/Δx_7-15`),
                 names_to = "date",
                 values_to = "gradient") |>
   mutate(date = case_when(date == "Δlc-excess/Δx_6-24" ~ "2026-06-24",
-                          date == "Δlc-excess/Δx_6-30" ~ "2026-06-30"),
+                          date == "Δlc-excess/Δx_6-30" ~ "2026-06-30",
+                          date == "Δlc-excess/Δx_7-15" ~ "2026-07-15"),
          gradient = as.numeric(gradient)) |>
   left_join(distances %>% select(site, xmin, xmax), by = "site") |> 
   mutate(site = factor(site, levels = distances$site)) |>
@@ -525,42 +525,44 @@ TC-BDA3 is the outlier reach on both dates — it's close to flat (near-zero gra
 
 
 ```{r}
+#| message: false
+#| warning: false
 
-gradient_dams_clean <- gradient_data %>%
+gradient_cum_tc <- gradient_tc |> 
   select(site, cumulative_dams,
-         `Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`) %>%
+         `Δlc-excess/Δcum_dam_length_6-24`, `Δlc-excess/Δcum_dam_length_6-30`, `Δlc-excess/Δcum_dam_length_7-15`) |> 
   pivot_longer(
-    cols = c(`Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`),
+    cols = c(`Δlc-excess/Δcum_dam_length_6-24`, `Δlc-excess/Δcum_dam_length_6-30`, `Δlc-excess/Δcum_dam_length_7-15`),
     names_to = "date",
     values_to = "gradient"
-  ) %>%
+  ) |> 
   mutate(
     date = case_when(
-      date == "Δlc-excess/Δx_6-24" ~ "2026-06-24",
-      date == "Δlc-excess/Δx_6-30" ~ "2026-06-30"
+      date == "Δlc-excess/Δcum_dam_length_6-24" ~ "2026-06-24",
+      date == "Δlc-excess/Δcum_dam_length_6-30" ~ "2026-06-30",
+      date == "Δlc-excess/Δcum_dam_length_7-15" ~ "2026-07-15"
     ),
     gradient = as.numeric(gradient),
     cumulative_dams = as.numeric(cumulative_dams),
     site = factor(site, levels = c("TC-P3-US", "TC-P3-mid", "TC-P3-DS",
                                     "TC-BDA1", "TC-BDA1.5", "TC-BDA2", "TC-BDA3"))
-  ) %>%
+  ) |> 
   filter(!is.na(gradient))
 
 
-ggplot(gradient_dams_clean, aes(x = site, y = gradient, fill = site)) +
+ggplot(gradient_cum_tc, aes(x = site, y = gradient, fill = site)) +
   geom_col(color = "black", width = 0.7) +
   geom_hline(yintercept = 0, color = "steelblue", linewidth = 0.4) +
   facet_wrap(~ date, nrow = 1) +
   scale_fill_manual(values = wes_palette("FantasticFox1", n = 7, type = "continuous")) +
   scale_x_discrete(labels = function(x) {
-    lookup <- setNames(gradient_dams_clean$cumulative_dams, gradient_dams_clean$site)
+    lookup <- setNames(gradient_cum_tc$cumulative_dams, gradient_cum_tc$site)
     lookup[x]
   }) +
   labs(
-    x = "Cumulative dam count",
-    y = expression(Delta*"lc-excess/"*Delta*"x"),
-    fill = "Site"
-  ) +
+  x = "Cumulative dam count",
+  y = expression(Delta * "lc-excess/" * Delta * "cumulative dam length (" * "\u2030" * ")/m")
+) +
   theme_bw(base_size = 12) +
   theme(
     strip.text = element_text(face = "bold", size = 11),
@@ -574,6 +576,66 @@ ggplot(gradient_dams_clean, aes(x = site, y = gradient, fill = site)) +
 ```
 
 ## Exploratory Visuals of Coal Creek
+
+```{r}
+#| message: false
+#| warning: false
+
+
+
+gradient_cum_cc <- gradient_cc |> 
+  select(
+    site, 
+    cumulative_dams, 
+    `Δlc-excess/Δavg_dam_length_6-23 (ppb/m)`, 
+    `Δlc-excess/Δcum_dam_length_7-7 (ppb/m)`
+  ) |> 
+  pivot_longer(
+    cols = c(`Δlc-excess/Δavg_dam_length_6-23 (ppb/m)`, `Δlc-excess/Δcum_dam_length_7-7 (ppb/m)`), 
+    names_to = "date", 
+    values_to = "gradient"
+  ) |> 
+  mutate(
+    date = case_when(
+      date == "Δlc-excess/Δavg_dam_length_6-23 (ppb/m)" ~ "2026-06-23",
+      date == "Δlc-excess/Δcum_dam_length_7-7 (ppb/m)"  ~ "2026-07-07"
+    ),
+    gradient = as.numeric(gradient),
+    cumulative_dams = as.numeric(cumulative_dams),
+    # Adjust site factor levels if they differ from the previous dataset
+    site = factor(site) 
+  ) |> 
+  filter(!is.na(gradient))
+
+ggplot(gradient_cum_cc, aes(x = site, y = gradient, fill = site)) +
+  geom_col(color = "black", width = 0.7) +
+  geom_hline(yintercept = 0, color = "steelblue", linewidth = 0.4) +
+  facet_wrap(~ date, nrow = 1) +
+  scale_fill_manual(values = wes_palette("FantasticFox1", n = 4, type = "continuous")) +
+  scale_x_discrete(labels = function(x) {
+    lookup <- setNames(gradient_cum_cc$cumulative_dams, gradient_cum_cc$site)
+    lookup[x]
+  }) +
+  labs(
+    x = "Cumulative dam count",
+    y = expression(Delta * "lc-excess/" * Delta * "cumulative dam length (" * "\u2030" * ")/m")
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    strip.text = element_text(face = "bold", size = 11),
+    strip.background = element_rect(fill = "gray85", color = NA),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.title = element_text(face = "bold")
+  )
+
+
+```
+
+
+
+
+
 
 
 
