@@ -13,11 +13,8 @@ To work with the code in this repository, you will need the following packages:
 library(tidyverse)
 library(here)
 library(janitor)
-library(snakecase)
-library(scales)
-library(readxl)
-library(patchwork)
-library(ggridges)
+library(viridis)
+library(wesanderson)
 ```
 
 ## Data and file information
@@ -26,15 +23,24 @@ library(ggridges)
 .
 ├── README.md
 ├── code
-│   ├── exploratory-rmbl.pdf                          
-│   ├── exploratory-rmbl.qmd                            
-│   ├──  
-│   ├── 
+│   ├── all-sites-exploratory.pdf                          
+│   ├── all-sites-exploratory.qmd
+│   ├── trail-creek-exploratory.pdf
+│   ├── trail-creek-exploratory.qmd
+│   ├── coal-creek-exploratory.pdf                          
+│   ├── coal-creek-exploratory.qmd
+│   ├── italian-creek-exploratory.pdf
+│   ├── italian-creek-exploratory.qmd
 │   ├── 
 ├── data
-│   ├── TC-isotopes_april-june.csv
-│   ├── TrailCreek_20260415_export20260630.csv        
-│   └── UTC_20260403_export20260630.csv 
+│   ├── cc_gradient_data.csv
+│   ├── tc_gradient_data.csv
+│   ├── compiled.csv
+│   ├── metadata.csv
+│   ├── trail_creek_compiled_ISCO.csv
+│   ├── Trail_Creek_WY2026_Streamflow.xlsx
+│   ├── Trail_Creek_2026-07-23-15.csv
+│   └── UTC_2026-07-23-15.csv 
 └── RMBL-2026.Rproj
 ```
 

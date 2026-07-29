@@ -2,6 +2,8 @@
 title: "trail-creek-exploratory"
 author: "Linda Herrera"
 format: typst
+execute:
+  fig-format: png
 ---
 
 ## Packages
@@ -14,19 +16,8 @@ format: typst
 library(tidyverse)
 library(here)
 library(janitor)
-library(snakecase)
-library(scales)
-library(readxl)
-library(patchwork)
-library(ggridges)
-library(lme4)
-library(lmerTest)
-library(knitr)
-library(rmarkdown)
 library(viridis)
-library(viridisLite)
 library(wesanderson)
-library(ragg)
 
 ```
 
