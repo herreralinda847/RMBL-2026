@@ -46,5 +46,17 @@ library(wesanderson)
 
 ## Rendered output
 
-The rendered exploratory is 
-[here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/exploratory-rmbl.pdf).
+The rendered all-sites-exploratory is 
+[here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/all-sites-exploratory.pdf).
+
+The rendered trail-creek-exploratory is 
+[here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/trail-creek-exploratory.pdf).
+
+The rendered coal-creek-exploratory is 
+[here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/coal-creek-exploratory.pdf).
+
+The rendered italian-creek-exploratory is 
+[here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/italian-creek-exploratory.pdf).
+
+
+
