@@ -42,7 +42,7 @@ library(ragg)
 #| warning: false
 
 # Trail Creek Isotope 
-compiled_isotope <- read_csv(here("data", ""), show_col_types = FALSE) |> 
+compiled_isotope <- read_csv(here("data", "compiled.csv"), show_col_types = FALSE) |> 
   clean_names() |> # lowercase and underscores in column names
   rename(sample = sample_name, # renaming columns to be shorter 
          delta_d = processed_delta_d,
@@ -51,14 +51,21 @@ compiled_isotope <- read_csv(here("data", ""), show_col_types = FALSE) |>
          delta_o_std = processed_delta_18o_stdev) |> 
   mutate(date = mdy(date)) # telling r the date format
 
+gradient_tc <- read_csv(here("data", "tc_gradient_data.csv"))
 
-gradient_data <- read_csv(here("data", "tc_gradient_data.csv"))
+gradient_cc <- read_csv(here("data", "cc_gradient_data.csv"))
+
+metadata <- read_csv(here("data", "metadata.csv"))
 
 trail_creek <- compiled_isotope |> 
   filter(location %in% c("utc", "tc"))
 
 coal_creek <- compiled_isotope |> 
-  filter(location == "cc")
+  filter(location %in% c("cc")) |> 
+  filter(site != "coal_3")
+
+coal_creek_all <- compiled_isotope |> 
+  filter(location %out% c("cc"))
 
 italian_creek <- compiled_isotope |> 
   filter(location == "ic")
