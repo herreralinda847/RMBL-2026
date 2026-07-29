@@ -29,7 +29,6 @@ library(rmarkdown)
 library(viridis)
 library(viridisLite)
 library(wesanderson)
-
 library(ragg)
 
 ```
@@ -43,7 +42,7 @@ library(ragg)
 #| warning: false
 
 # Trail Creek Isotope 
-compiled_isotope <- read_csv(here("data", "compiled_river_reach_isotope_data.csv"), show_col_types = FALSE) |> 
+compiled_isotope <- read_csv(here("data", ""), show_col_types = FALSE) |> 
   clean_names() |> # lowercase and underscores in column names
   rename(sample = sample_name, # renaming columns to be shorter 
          delta_d = processed_delta_d,
@@ -389,28 +388,6 @@ ggplot(compiled_isotope, aes(x = delta_o, y = delta_d, color = site)) +
 
 ```
 
-Lc-excess boxplot by reach, faceted by watershed
-
-```{r}
-#| label: helo
-#| message: false
-#| warning: false
-
-ggplot(compiled_isotope, aes(x = site, y = lc_excess, fill = site)) +
-  geom_boxplot(alpha = 0.7, outlier.shape = 21) +
-  geom_jitter(width = 0.15, alpha = 0.4, size = 1.5) +
-  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek", 
-                                                           cc = "Coal Creek", 
-                                                           ic = "Italian Creek"))) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-  labs(title = "lc-excess by Reach Position",
-       subtitle = "Values below 0 indicate evaporative enrichment",
-       x = "Reach", y = "lc-excess (\u2030)") +
-  theme_bw() +
-  theme(plot.title = element_text(face = "bold", size = 14),
-        legend.position = "none")
-```
-
 Time series of lc-excess across season, colored by reach, faceted by watershed
 
 ```{r}
@@ -518,7 +495,7 @@ ggplot(gradient_lc_clean) +
   scale_x_continuous(
     breaks = distances$dist_m,
     labels = distances$site) +
-  labs(title = "Spatial variations in Δlc-excess/Δx across sampling dates",
+  labs(title = "Trail Creek: Spatial variations in Δlc-excess/Δx across sampling dates",
        x = "Normalized stream distance (m)",
        y = expression(paste(Delta, "lc-excess / ", Delta, "x (ppb/km)"))) +
   theme_bw(base_size = 11) +
@@ -540,8 +517,61 @@ Where the deepest enrichment is happening differs by date:
 TC-BDA3 is the outlier reach on both dates — it's close to flat (near-zero gradient), meaning that final reach adds almost no additional evaporative signal, regardless of date. That's consistent between both panels and is probably your most robust finding here: whatever's happening upstream, the lowest reach isn't contributing much additional fractionation.
 
 
+```{r}
+
+gradient_dams_clean <- gradient_data %>%
+  select(site, cumulative_dams,
+         `Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`) %>%
+  pivot_longer(
+    cols = c(`Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`),
+    names_to = "date",
+    values_to = "gradient"
+  ) %>%
+  mutate(
+    date = case_when(
+      date == "Δlc-excess/Δx_6-24" ~ "2026-06-24",
+      date == "Δlc-excess/Δx_6-30" ~ "2026-06-30"
+    ),
+    gradient = as.numeric(gradient),
+    cumulative_dams = as.numeric(cumulative_dams),
+    site = factor(site, levels = c("TC-P3-US", "TC-P3-mid", "TC-P3-DS",
+                                    "TC-BDA1", "TC-BDA1.5", "TC-BDA2", "TC-BDA3"))
+  ) %>%
+  filter(!is.na(gradient))
+
+
+ggplot(gradient_dams_clean, aes(x = site, y = gradient, fill = site)) +
+  geom_col(color = "black", width = 0.7) +
+  geom_hline(yintercept = 0, color = "steelblue", linewidth = 0.4) +
+  facet_wrap(~ date, nrow = 1) +
+  scale_fill_manual(values = wes_palette("FantasticFox1", n = 7, type = "continuous")) +
+  scale_x_discrete(labels = function(x) {
+    lookup <- setNames(gradient_dams_clean$cumulative_dams, gradient_dams_clean$site)
+    lookup[x]
+  }) +
+  labs(
+    x = "Cumulative dam count",
+    y = expression(Delta*"lc-excess/"*Delta*"x"),
+    fill = "Site"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    strip.text = element_text(face = "bold", size = 11),
+    strip.background = element_rect(fill = "gray85", color = NA),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.title = element_text(face = "bold")
+  )
+
+
+```
 
 ## Exploratory Visuals of Coal Creek
+
+
+
+
+
 
 
 ## Exploratory Visuals of Italian Creek
