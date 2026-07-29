@@ -6,3 +6,231 @@ execute:
   fig-format: png
 ---
 
+## Packages
+
+```{r}
+#| label: packages
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(viridis)
+library(wesanderson)
+```
+
+## Data 
+
+```{r}
+
+compiled_isotope <- read_csv(here("data", "compiled.csv"), show_col_types = FALSE) |> 
+  clean_names() |> # lowercase and underscores in column names
+  rename(sample = sample_name, # renaming columns to be shorter 
+         delta_d = processed_delta_d,
+         delta_d_std = processed_delta_d_stdev,
+         delta_o = processed_delta_18o,
+         delta_o_std = processed_delta_18o_stdev) |> 
+  mutate(date = mdy(date)) # telling r the date format
+
+gradient_cc <- read_csv(here("data", "cc_gradient_data.csv"))
+
+coal_creek <- compiled_isotope |> # the sites of focus
+  filter(location %in% c("cc")) |> 
+  filter(site != "coal_3")
+
+coal_creek_all <- compiled_isotope |> # includes coal creek 3 that is a tributary to main creek
+ filter(location %in% c("cc")) 
+
+
+```
+
+```{r}
+#| label: lc-excess-vs-delta18O-cc
+#| message: false
+#| warning: false
+
+ggplot(data = coal_creek, aes(x = delta_o, y = lc_excess, color = site)) +
+  geom_point(size = 2.5, alpha = 0.7) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.15, linewidth = 1) + 
+  labs(
+    title = "Line-Conditioned Excess (lc-excess) vs. Delta 18O",
+    subtitle = "Comparing evaporation signals across Coal Creek sites",
+    x = expression(paste(delta, " "^18, "O (\u2030)")),
+    y = "lc-excess (\u2030)",
+    color = "Site") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "right",
+        panel.grid.minor = element_blank())
+```
+
+
+```{r}
+#| label: time-series-lc-excess-cc
+#| message: false
+#| warning: false
+
+ggplot(data = coal_creek_all, 
+       aes(x = date, y = lc_excess, color = site, group = site)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.8) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  geom_line(linewidth = 1, alpha = 0.7) + 
+  labs(title = "Time-Series of Line-Conditioned Excess (lc-excess)",
+       subtitle = "Coal Creek -- values below 0 indicate potential evaporative enrichment",
+       x = "Sampling Date",
+       y = "lc-excess (\u2030)",
+       color = "Site") +
+  ylim(-8, 8) +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+
+
+```
+
+```{r}
+#| label: dual-isotope-plot-GWML
+#| message: false
+#| warning: false
+
+ggplot(coal_creek_all, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(alpha = 0.7, size = 2) +
+  # Add Global Meteoric Water Line (GMWL: y = 8x + 10)
+  geom_abline(intercept = 10, slope = 8, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+  labs(
+    title = "Dual-Isotope Plot with GMWL",
+    x = expression(paste(delta^{18}, "O (‰)")),
+    y = expression(paste(delta, "D (‰)")),
+    color = "Site"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+```
+
+
+
+
+```{r}
+#| label: dual-isotope-plot-LMWL-cc
+#| message: false
+#| warning: false
+
+# Coal Creek LMWL calculated from OPIC
+lmwl_slope <- 7.93
+lmwl_intercept <- 8.97
+
+ggplot(coal_creek_all, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(alpha = 0.7, size = 2) +
+  geom_abline(intercept = lmwl_intercept, slope = lmwl_slope, 
+              linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+  labs(
+    title = "Dual-Isotope Plot: \u03b418O vs \u03b4D",
+    subtitle = "Dashed line = Gunnison LMWL (Huth et al., 2019)",
+    x = expression(paste(delta^{18}, "O (\u2030)")),
+    y = expression(paste(delta, "D (\u2030)")),
+    color = "Site"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+```
+
+```{r}
+#| label: monthly-variations-cc
+#| message: false
+#| warning: false
+
+ggplot(coal_creek_all, aes(x = factor(month(date, label = TRUE, abbr = TRUE)), y = lc_excess)) +
+  geom_boxplot(aes(fill = factor(month(date))), show.legend = FALSE) +
+  labs(
+    title = "Monthly Variations in Evaporative Fraction (lc-excess) at Coal Creek",
+    subtitle = "Seasonal isotopic shifts indicating changes in local evaporation-condensation histories",
+    x = "Month",
+    y = "lc-excess (\u2030)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+```
+
+```{r}
+#| label: mean-lc-excess-by-site-cc
+#| message: false
+#| warning: false
+
+delta_summary_cc <- coal_creek_all |>
+  group_by(site) |>
+  summarise(
+    mean_lc = mean(lc_excess, na.rm = TRUE),
+    se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+ggplot(delta_summary_cc, aes(x = site, y = mean_lc, fill = site)) +
+  geom_col(color = "black", width = 0.7) +
+  geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
+                width = 0.3, color = "black") +
+  scale_fill_viridis_d(option = "G") +
+  theme_minimal() +
+  labs(title = "Mean LC Excess by Site with Standard Error -- Coal Creek",
+       x = "Sampling Site",
+       y = "Mean LC Excess") +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+
+
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+
+gradient_cum_cc <- gradient_cc |> 
+  select(site, cumulative_dams, `Δlc-excess/Δavg_dam_length_6-23 (ppb/m)`,
+         `Δlc-excess/Δcum_dam_length_7-7 (ppb/m)`) |> 
+  pivot_longer(
+    cols = c(`Δlc-excess/Δavg_dam_length_6-23 (ppb/m)`, `Δlc-excess/Δcum_dam_length_7-7 (ppb/m)`), 
+    names_to = "date", values_to = "gradient") |> 
+  mutate(date = case_when(date == "Δlc-excess/Δavg_dam_length_6-23 (ppb/m)" ~ "2026-06-23",
+                          date == "Δlc-excess/Δcum_dam_length_7-7 (ppb/m)"  ~ "2026-07-07"),
+         gradient = as.numeric(gradient), cumulative_dams = as.numeric(cumulative_dams), 
+         site = factor(site)) |> 
+  filter(!is.na(gradient))
+
+ggplot(gradient_cum_cc, aes(x = site, y = gradient, fill = site)) +
+  geom_col(color = "black", width = 0.7) +
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.4) +
+  facet_wrap(~ date, nrow = 1) +
+  scale_fill_manual(values = wes_palette("FantasticFox1", n = 4, type = "continuous")) +
+  scale_x_discrete(labels = function(x) {
+    lookup <- setNames(gradient_cum_cc$cumulative_dams, gradient_cum_cc$site)
+    lookup[x]
+  }) +
+  labs(
+    x = "Cumulative dam count",
+    y = expression(Delta * "lc-excess/" * Delta * "cumulative dam length (" * "\u2030" * ")/m")
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    strip.text = element_text(face = "bold", size = 11),
+    strip.background = element_rect(fill = "gray85", color = NA),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.title = element_text(face = "bold")
+  )
+
+```
+
+
+
+
+
+

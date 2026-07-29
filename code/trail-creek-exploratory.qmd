@@ -533,15 +533,6 @@ ggplot(gradient_lc_clean) +
 
 ```
 
-All reaches show lc-excess decreasing downstream, on both dates. Since lc-excess becoming more negative = more evaporative enrichment, this version says every single reach along Trail Creek is adding evaporative signal, with no recovery zones. That's a materially different story than "some reaches enrich, some reaches dilute" — it now reads as continuous, cumulative evaporative loss along the whole restored gradient.
-
-Where the deepest enrichment is happening differs by date:
-
-6-24: TC-P3-DS reach is the sharpest dip (~-2.2), essentially a local hotspot just downstream of the mid-P3 restoration point.
-6-30: TC-BDA1.5→BDA2 is now the sharpest dip (~-2.15), while TC-P3-DS has relaxed to a much smaller magnitude (~-0.55) compared to 6-24.
-
-TC-BDA3 is the outlier reach on both dates — it's close to flat (near-zero gradient), meaning that final reach adds almost no additional evaporative signal, regardless of date. That's consistent between both panels and is probably your most robust finding here: whatever's happening upstream, the lowest reach isn't contributing much additional fractionation.
-
 
 ```{r}
 #| message: false

@@ -5,3 +5,37 @@ format: typst
 execute:
   fig-format: png
 ---
+
+
+## Packages
+
+```{r}
+#| label: packages
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(viridis)
+library(wesanderson)
+```
+
+## Data 
+
+```{r}
+
+compiled_isotope <- read_csv(here("data", "compiled.csv"), show_col_types = FALSE) |> 
+  clean_names() |> # lowercase and underscores in column names
+  rename(sample = sample_name, # renaming columns to be shorter 
+         delta_d = processed_delta_d,
+         delta_d_std = processed_delta_d_stdev,
+         delta_o = processed_delta_18o,
+         delta_o_std = processed_delta_18o_stdev) |> 
+  mutate(date = mdy(date)) # telling r the date format
+
+
+italian_creek <- compiled_isotope |> 
+  filter(location == "ic")
+
+```
