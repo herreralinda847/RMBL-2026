@@ -36,6 +36,143 @@ compiled_isotope <- read_csv(here("data", "compiled.csv"), show_col_types = FALS
 
 
 italian_creek <- compiled_isotope |> 
-  filter(location == "ic")
+  filter(location == "it")
 
 ```
+
+## Figures 
+
+
+```{r}
+#| label: lc-excess-vs-delta18O-it
+#| message: false
+#| warning: false
+
+ggplot(data = italian_creek, aes(x = delta_o, y = lc_excess, color = site)) +
+  geom_point(size = 2.5, alpha = 0.7) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.15, linewidth = 1) + 
+  labs(
+    title = "Line-Conditioned Excess (lc-excess) vs. Delta 18O",
+    subtitle = "Comparing evaporation signals across Italian Creek sites",
+    x = expression(paste(delta, " "^18, "O (\u2030)")),
+    y = "lc-excess (\u2030)",
+    color = "Site") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "right",
+        panel.grid.minor = element_blank())
+```
+
+
+```{r}
+#| label: time-series-lc-excess-it
+#| message: false
+#| warning: false
+
+ggplot(data = italian_creek, 
+       aes(x = date, y = lc_excess, color = site, group = site)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.8) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  geom_line(linewidth = 1, alpha = 0.7) + 
+  labs(title = "Time-Series of Line-Conditioned Excess (lc-excess)",
+       subtitle = "Italian Creek - values below 0 indicate potential evaporative enrichment",
+       x = "Sampling Date",
+       y = "lc-excess (\u2030)",
+       color = "Site") +
+  ylim(-8, 8) +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+
+
+```
+
+```{r}
+#| label: dual-isotope-plot-GWML-it
+#| message: false
+#| warning: false
+
+ggplot(italian_creek, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(alpha = 0.7, size = 2) +
+  # Add Global Meteoric Water Line (GMWL: y = 8x + 10)
+  geom_abline(intercept = 10, slope = 8, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+  labs(
+    title = "Dual-Isotope Plot with GMWL",
+    x = expression(paste(delta^{18}, "O (‰)")),
+    y = expression(paste(delta, "D (‰)")),
+    color = "Site"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+```
+
+
+```{r}
+#| label: dual-isotope-plot-LMWL-it
+#| message: false
+#| warning: false
+
+# Italian Creek LMWL calculated from OPIC y = 7.89 x + 8.67 
+lmwl_slope_it <- 7.89
+lmwl_intercept_it <- 8.67
+
+ggplot(italian_creek, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(alpha = 0.7, size = 2) +
+  geom_abline(intercept = lmwl_intercept_it, slope = lmwl_slope_it, 
+              linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+  labs(
+    title = "Dual-Isotope Plot: \u03b418O vs \u03b4D",
+    subtitle = "Local Mean Water Line (LMWL: y = 7.89 x + 8.67)",
+    x = expression(paste(delta^{18}, "O (\u2030)")),
+    y = expression(paste(delta, "D (\u2030)")),
+    color = "Site"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+```
+
+```{r}
+#| label: mean-lc-excess-by-site-cc
+#| message: false
+#| warning: false
+
+delta_summary_it <- italian_creek |>
+  group_by(site) |>
+  summarise(
+    mean_lc = mean(lc_excess, na.rm = TRUE),
+    se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+ggplot(delta_summary_it, aes(x = site, y = mean_lc, fill = site)) +
+  geom_col(color = "black", width = 0.7) +
+  geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
+                width = 0.3, color = "black") +
+  scale_fill_viridis_d(option = "G") +
+  theme_minimal() +
+  labs(title = "Mean LC Excess by Site with Standard Error",
+       x = "Sampling Site",
+       y = "Mean LC Excess") +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+

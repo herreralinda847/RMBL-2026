@@ -45,6 +45,8 @@ coal_creek_all <- compiled_isotope |> # includes coal creek 3 that is a tributar
 
 ```
 
+## Figures 
+
 ```{r}
 #| label: lc-excess-vs-delta18O-cc
 #| message: false
@@ -111,8 +113,6 @@ ggplot(coal_creek_all, aes(x = delta_o, y = delta_d, color = site)) +
 ```
 
 
-
-
 ```{r}
 #| label: dual-isotope-plot-LMWL-cc
 #| message: false
@@ -159,7 +159,7 @@ ggplot(coal_creek_all, aes(x = factor(month(date, label = TRUE, abbr = TRUE)), y
 ```
 
 ```{r}
-#| label: mean-lc-excess-by-site-cc
+#| label: mean-lc-excess-by-site-cc-all
 #| message: false
 #| warning: false
 
@@ -177,7 +177,7 @@ ggplot(delta_summary_cc, aes(x = site, y = mean_lc, fill = site)) +
                 width = 0.3, color = "black") +
   scale_fill_viridis_d(option = "G") +
   theme_minimal() +
-  labs(title = "Mean LC Excess by Site with Standard Error -- Coal Creek",
+  labs(title = "Mean LC Excess by Site with Standard Error",
        x = "Sampling Site",
        y = "Mean LC Excess") +
   theme(plot.title = element_text(face = "bold", size = 14),
@@ -187,6 +187,40 @@ ggplot(delta_summary_cc, aes(x = site, y = mean_lc, fill = site)) +
 
 
 ```
+
+
+```{r}
+#| label: mean-lc-excess-by-site-cc
+#| message: false
+#| warning: false
+
+delta_sum_cc <- coal_creek |>
+  group_by(site) |>
+  summarise(
+    mean_lc = mean(lc_excess, na.rm = TRUE),
+    se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+ggplot(delta_sum_cc, aes(x = site, y = mean_lc, fill = site)) +
+  geom_col(color = "black", width = 0.7) +
+  geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
+                width = 0.3, color = "black") +
+  scale_fill_viridis_d(option = "G") +
+  theme_minimal() +
+  labs(title = "Mean LC Excess by Site with Standard Error",
+       x = "Sampling Site",
+       y = "Mean LC Excess") +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+
+
+```
+
+
+
 
 
 ```{r}

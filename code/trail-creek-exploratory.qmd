@@ -397,13 +397,12 @@ Dual-isotope plot (δ18O vs δD) with LMWL reference
 lmwl_slope <- 7.94
 lmwl_intercept <- 9.37 
 
-ggplot(compiled_isotope, aes(x = delta_o, y = delta_d, color = site)) +
+ggplot(trail_creek, aes(x = delta_o, y = delta_d, color = site)) +
   geom_point(size = 2.5, alpha = 0.7) +
   geom_abline(slope = lmwl_slope, intercept = lmwl_intercept, 
               linetype = "dashed", color = "black", linewidth = 0.8) +
-  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek", 
-                                                           cc = "Coal Creek", 
-                                                           ic = "Italian Creek"))) +
+  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek",
+                                                         utc = "Upstream Trail Creek"))) +
   labs(title = "Dual Isotope Plot: \u03b418O vs \u03b4D",
        subtitle = "Dashed line = Trail Creek LMWL",
        x = expression(paste(delta^18, "O (\u2030)")),
@@ -415,39 +414,6 @@ ggplot(compiled_isotope, aes(x = delta_o, y = delta_d, color = site)) +
 
 ```
 
-Time series of lc-excess across season, colored by reach, faceted by watershed
-
-```{r}
-#| label: seasonal-trends-in-lcexcess
-#| message: false
-#| warning: false
-
-ggplot(compiled_isotope, aes(x = date, y = lc_excess, color = site, group = interaction(site, location))) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-  geom_point(size = 2, alpha = 0.8) +
-  geom_line(alpha = 0.6) +
-  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek", 
-                                                         cc = "Coal Creek",
-                                                         ic = "Italian Creek"))) +
-  scale_x_date(date_labels = "%b %d") +
-  scale_color_manual(values = wes_palette("FantasticFox1", n = length(unique(compiled_isotope$site)),
-                                          type = "continuous"),
-                     labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" =
-                                "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6", "italian_1" = "IT-1",
-                                "italian_2" = "IT-2", "italian_3" = "IT-3", "italian_4" = "IT-4",
-                                "italian_5" = "IT-5","tc_isco" = "TC-ISCO", "tc_1" = "TC-1", "tc_15"
-                                = "TC-1.5", "tc_2" = "TC-2", "tc_3" = "TC-3", "tc_ds" = "TC-DS",
-                                "tc_mid" = "TC-Mid", "tc_us" = "TC-US", "utc_isco" = "UTC-ISCO")) +
-  labs(title = "Seasonal Trends in lc-excess",
-       subtitle = "2025 low-snowpack year",
-       x = "Sampling Date", y = "lc-excess (\u2030)", color = "Reach") +
-  theme_bw() +
-  theme(plot.title = element_text(face = "bold", size = 14),
-        legend.position = "right",
-        axis.text.x = element_text(angle = 45, hjust = 1))
-
-
-```
 
 ```{r}
 
@@ -489,7 +455,7 @@ ggplot(delta_summary, aes(x = site, y = mean_lc, fill = site)) +
 #| message: false
 #| warning: false
 #| fig-height: 5
-#| fig-width: 6
+#| fig-width: 8
 
 # Buildings a look up table of stream distances
 distances <- tibble(site = c("TC-P3-US", "TC-P3-mid", "TC-P3-DS", "TC-BDA1",

@@ -73,8 +73,8 @@ ggplot(data = compiled_isotope, aes(x = delta_o, y = lc_excess, color = location
   geom_point(size = 2.5, alpha = 0.7) +
   geom_smooth(method = "lm", se = TRUE, alpha = 0.15, linewidth = 1) + 
   scale_color_manual(
-    values = c("tc" = "royalblue2", "cc" = "turquoise3", "ic" = "deeppink2", "utc" = "orangered2"),
-    labels = c("cc" = "Coal Creek", "ic" = "Italian Creek", "tc" = "Trail Creek", "utc" = "Upper Trail Creek")
+    values = c("tc" = "royalblue2", "cc" = "turquoise3", "it" = "deeppink2", "utc" = "orangered2"),
+    labels = c("cc" = "Coal Creek", "it" = "Italian Creek", "tc" = "Trail Creek", "utc" = "Upper Trail Creek")
   ) +
   labs(
     title = "Line-Conditioned Excess (lc-excess) vs. Delta 18O",
@@ -205,7 +205,10 @@ Monthly Variations in Evaporative Fraction (lc-excess) Across Study Sites
 
 ggplot(compiled_isotope, aes(x = factor(month(date, label = TRUE, abbr = TRUE)), y = lc_excess)) +
   geom_boxplot(aes(fill = factor(month(date))), show.legend = FALSE) +
-  facet_wrap(~location, scales = "free_y") +
+  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek", 
+                                                         cc = "Coal Creek",
+                                                         it = "Italian Creek",
+                                                         utc = "Upstream Trail Creek"))) +
  labs(
     title = "Monthly Variations in Evaporative Fraction (lc-excess) Across Study Sites",
     subtitle = "Seasonal isotopic shifts indicating changes in local evaporation-condensation histories",
@@ -218,4 +221,74 @@ ggplot(compiled_isotope, aes(x = factor(month(date, label = TRUE, abbr = TRUE)),
     axis.text.x = element_text(angle = 45, hjust = 1)) # tilting the x axis text
 
 ```
+
+
+
+
+Time series of lc-excess across season, colored by reach, faceted by watershed
+
+```{r}
+#| label: seasonal-trends-in-lcexcess
+#| message: false
+#| warning: false
+
+ggplot(compiled_isotope, aes(x = date, y = lc_excess, color = site, group = interaction(site, location))) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_point(size = 2, alpha = 0.8) +
+  geom_line(alpha = 0.6) +
+  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek", 
+                                                         cc = "Coal Creek",
+                                                         it = "Italian Creek",
+                                                         utc = "Upstream Trail Creek"))) +
+  scale_x_date(date_labels = "%b %d") +
+  scale_color_manual(values = wes_palette("FantasticFox1", n = length(unique(compiled_isotope$site)),
+                                          type = "continuous"),
+                     labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" =
+                                "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6", "italian_1" = "IT-1",
+                                "italian_2" = "IT-2", "italian_3" = "IT-3", "italian_4" = "IT-4",
+                                "italian_5" = "IT-5","tc_isco" = "TC-ISCO", "tc_1" = "TC-1", "tc_15"
+                                = "TC-1.5", "tc_2" = "TC-2", "tc_3" = "TC-3", "tc_ds" = "TC-DS",
+                                "tc_mid" = "TC-Mid", "tc_us" = "TC-US", "utc_isco" = "UTC-ISCO")) +
+  labs(title = "Seasonal Trends in lc-excess",
+       subtitle = "2025 low-snowpack year",
+       x = "Sampling Date", y = "lc-excess (\u2030)", color = "Reach") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "right",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+Dual-isotope plot (δ18O vs δD) with LMWL reference
+
+```{r}
+#| label: dual
+#| message: false
+#| warning: false
+
+# Add Global Meteoric Water Line (GMWL: y = 8x + 10)
+
+gmwl_slope <- 8.00
+gmwl_intercept <- 10.00 
+
+ggplot(compiled_isotope, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(size = 2.5, alpha = 0.7) +
+  geom_abline(slope = gmwl_slope, intercept = gmwl_intercept, 
+              linetype = "dashed", color = "black", linewidth = 0.8) +
+  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek",
+                                                         utc = "Upstream Trail Creek",
+                                                         cc = "Coal Creek",
+                                                         it = "Italian Creek"))) +
+  labs(title = "Dual Isotope Plot: \u03b418O vs \u03b4D",
+       subtitle = "Dashed line = Global Meteoric Water Line",
+       x = expression(paste(delta^18, "O (\u2030)")),
+       y = expression(paste(delta, "D (\u2030)")),
+       color = "Reach") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "none")
+
+```
+
 
