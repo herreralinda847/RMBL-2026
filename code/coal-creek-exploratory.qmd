@@ -221,6 +221,59 @@ ggplot(delta_sum_cc, aes(x = site, y = mean_lc, fill = site)) +
 
 
 
+```{r}
+#| label: gradient-cc
+#| message: false
+#| warning: false
+#| fig-height: 5
+#| fig-width: 8
+
+# Buildings a look up table of stream distances
+
+distances_cc <- tibble(
+  site = c("CC1", "CC2", "CC4", "CC5", "CC6"),
+  dist_m = c(0, 1496, 2006, 2478, 2885)) |> 
+  mutate(xmax = dist_m,
+         xmin = lag(dist_m, default = 0))
+
+# Creating a filtered data frame for lc-excess
+gradient_cc_clean <- gradient_cc |>
+  select(site, normalized_stream_distance_m, `Δlc-excess/Δx_6-23`, `Δlc-excess/Δx_7-7`) |>
+  pivot_longer(cols = c(`Δlc-excess/Δx_6-23`, `Δlc-excess/Δx_7-7`),
+    names_to = "date",
+    values_to = "gradient") |> 
+  mutate(date = case_when(
+    date == "Δlc-excess/Δx_6-23" ~ "2026-06-23",
+    date == "Δlc-excess/Δx_7-7" ~ "2026-07-07"),
+    gradient = as.numeric(gradient)) |>
+  left_join(distances_cc |> select(site, xmin, xmax),
+            by = "site") |>
+  mutate(site = factor(site, levels = distances_cc$site)) |>
+  filter(!is.na(gradient))
+
+
+# Gradient plot
+ggplot(gradient_cc_clean) +
+  geom_rect(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = gradient),
+            fill = "royalblue2", color = "black", linewidth = 0.3) +
+  geom_hline(yintercept = 0, color = "royalblue2", linewidth = 0.4) +
+  facet_wrap(~date, nrow = 1) +
+  scale_x_continuous(
+    breaks = distances_cc$dist_m,
+    labels = distances_cc$site) +
+  labs(
+    title = "Coal Creek: Spatial variations in Δlc-excess/Δx across sampling dates",
+    x = "Normalized stream distance (m)",
+    y = expression(paste(Delta, "lc-excess / ", Delta, "x (ppb/km)"))) +
+  theme_bw(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    panel.grid.minor = element_blank(),
+    strip.text = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
 
 
 ```{r}
