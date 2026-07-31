@@ -130,13 +130,13 @@ utc_isco <- isco_data |>
 #| message: false
 #| warning: false
 
-#----------------------- ANOVA of lc-excess and location ---------------------- #
+#--------- ANOVA of lc-excess and location ---------------------- #
 anova <- aov(lc_excess ~ location, data = compiled_isotope)
 summary(anova)
 
 TukeyHSD(anova)
 
-#----------------------- Correlation od location and date  ---------------------- #
+#------- Correlation od location and date  ---------------------- #
 
 compiled_isotope$date_c <- as.numeric(compiled_isotope$date) - mean(as.numeric(compiled_isotope$date))
 # center the date variable by subtracting its mean.
@@ -153,7 +153,7 @@ summary(model)
 anova(model)
 
 
-#----------------------- Correlation with normalized stream distance ---------------------- #
+#-------- Correlation with normalized stream distance ------------ #
 
 # Trail Creek 6/24 - lc-excess & cumulative dams
 model_6_24_str_tc <- lm(`lc-excess_6-24` ~ normalized_stream_distance_m, data = gradient_tc)
@@ -167,7 +167,6 @@ summary(model_6_30_str_tc)
 model_7_15_str_tc <- lm(`lc-excess_7-15` ~ normalized_stream_distance_m, data = gradient_tc)
 summary(model_7_15_str_tc)
 
-#__________________________________________________________________________________#
 
 # Coal Creek 6/23 - lc-excess & cumulative dams
 model_6_23_str_cc <-  lm(`lc-excess_6-23` ~ normalized_stream_distance_m, data = gradient_cc)
@@ -177,13 +176,13 @@ summary(model_6_23_str_cc)
 model_7_7_str_cc <-  lm(`lc-excess_7-7` ~ normalized_stream_distance_m, data = gradient_cc)
 summary(model_7_7_str_cc)
 
-#----------------------- Correlation of Trail Creek Upstream and Downstream  ---------------------- #
+#--------- Correlation of Trail Creek Upstream and Downstream  ------- #
 cor.test(tc_isco$avg_water_level, tc_isco$lc_excess)
 
 cor.test(utc_isco$avg_water_level, utc_isco$lc_excess)
 
 
-#----------------------- Correlation with cumulative dams ---------------------- #
+#---------- Correlation with cumulative dams ---------------------- #
 gradient_tc$cumulative_dams <- as.numeric(as.character(gradient_tc$cumulative_dams))
 
 # Trail Creek 6/24 - lc-excess & cumulative dams
@@ -198,7 +197,6 @@ summary(model_6_30_cum_tc)
 model_7_15_cum_tc <- lm(`lc-excess_7-15` ~ cumulative_dams, data = gradient_tc)
 summary(model_7_15_cum_tc)
 
-#__________________________________________________________________________________#
 
 gradient_cc$cumulative_dams <- as.numeric(as.character(gradient_cc$cumulative_dams))
 
@@ -210,7 +208,7 @@ summary(model_6_23_cum_cc)
 model_7_7_cum_cc <-  lm(`lc-excess_7-7` ~ cumulative_dams, data = gradient_cc)
 summary(model_7_7_cum_cc)
 
-#----------------------- Correlation with cumulative dam length ---------------------- #
+#------------- Correlation with cumulative dam length ---------------- #
 gradient_tc$cumulative_dam_length <- as.numeric(as.character(gradient_tc$cumulative_dam_length))
 
 # Trail Creek 6/24 - lc-excess & cumulative dam length
@@ -225,8 +223,6 @@ summary(model_6_30_cumd_tc)
 model_7_15_cumd_tc <- lm(`lc-excess_7-15` ~ cumulative_dam_length, data = gradient_tc)
 summary(model_7_15_cumd_tc)
 
-#__________________________________________________________________________________#
-
 gradient_cc$cumulative_dam_length <- as.numeric(as.character(gradient_cc$cumulative_dam_length))
 
 # Coal Creek 6/23 - lc-excess & cumulative dam length
@@ -237,7 +233,7 @@ summary(model_6_23_cumd_cc)
 model_7_7_cumd_cc <-  lm(`lc-excess_7-7` ~ cumulative_dam_length, data = gradient_cc)
 summary(model_7_7_cumd_cc)
 
-#----------------------- Correlation with average water level ---------------------- #
+#---------- Correlation with average water level ------------- #
 
 
 # Trail Creek - lc-excess & average water level
