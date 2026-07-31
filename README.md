@@ -15,6 +15,9 @@ library(here)
 library(janitor)
 library(viridis)
 library(wesanderson)
+library(lme4)
+library(ggplot2)
+library(patchwork)
 ```
 
 ## Data and file information
@@ -31,7 +34,9 @@ library(wesanderson)
 │   ├── coal-creek-exploratory.qmd
 │   ├── italian-creek-exploratory.pdf
 │   ├── italian-creek-exploratory.qmd
-│   ├── 
+│   ├── figures-referenced.pdf
+│   ├── figures-referenced.qmd
+│   └── figures-referenced_files
 ├── data
 │   ├── cc_gradient_data.csv
 │   ├── tc_gradient_data.csv
@@ -41,10 +46,14 @@ library(wesanderson)
 │   ├── Trail_Creek_WY2026_Streamflow.xlsx
 │   ├── Trail_Creek_2026-07-23-15.csv
 │   └── UTC_2026-07-23-15.csv 
+├── images
 └── RMBL-2026.Rproj
 ```
 
 ## Rendered output
+
+The rendered figures-referenced is 
+[here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/all-sites-exploratory.pdf).
 
 The rendered all-sites-exploratory is 
 [here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/all-sites-exploratory.pdf).
