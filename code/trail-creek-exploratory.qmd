@@ -112,6 +112,22 @@ isco_data <- merge(
 
 
 
+
+```{r}
+
+lm(lc_excess ~ normalized_stream_distance_m)
+
+lm(lc_excess ~ cumulative_dams)
+lm(lc_excess ~ cumulative_dam_length)
+```
+
+
+
+```{r}
+```
+
+
+
 ```{r}
 #| label: average-water-level-and-lc-excess
 #| message: false
@@ -479,7 +495,7 @@ gradient_lc_clean <- gradient_tc |>
   filter(!is.na(gradient))
 
 # Gradient plot
-ggplot(gradient_lc_clean) +
+plot1 <- ggplot(gradient_lc_clean) +
   geom_rect(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = gradient),
             fill = "royalblue2", color = "black", linewidth = 0.3) +
   geom_hline(yintercept = 0, color = "royalblue2", linewidth = 0.4) +

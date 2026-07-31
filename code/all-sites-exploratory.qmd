@@ -19,6 +19,9 @@ library(here)
 library(janitor)
 library(viridis)
 library(wesanderson)
+library(lme4)
+library(ggplot2)
+library(patchwork)
 ```
 
 
@@ -57,7 +60,198 @@ coal_creek_all <- compiled_isotope |>
 italian_creek <- compiled_isotope |> 
   filter(location == "ic")
 
+
+# Downstream Trail Creek 
+tc_data <- read_csv(here("data", "TrailCreek_2026-07-23-15.csv"), show_col_types = FALSE) |> # reading in data
+  clean_names() |> # lowercase and underscores in column names
+  rename(date_time = date_time_mdt, # renaming columns to be shorter 
+         dp = differential_pressure_k_pa,
+         ap = absolute_pressure_k_pa,
+         temp = temperature_c,
+         water_level = water_level_m,
+         bp = barometric_pressure_k_pa) |> 
+  mutate(date_time_parsed = mdy_hms(date_time), # telling r the date format
+         date = as_date(date_time_parsed)) |> # making a date column 
+  group_by(date) |> 
+  summarise(avg_dp = mean(dp, na.rm = TRUE), # averaging the data based on the day
+            avg_ap = mean(ap, na.rm = TRUE),
+            avg_temp = mean(temp, na.rm = TRUE),
+            avg_water_level = mean(water_level, na.rm = TRUE),
+            avg_bp = mean(bp, na.rm = TRUE),
+            total_readings = n(), # the amount of data it used to average
+            .groups = "drop") |>
+  mutate(site = "tc") # creating a new column of the site 
+
+# Upstream Trail Creek
+utc_data <- read_csv(here("data", "UTC_2026-07-23-15.csv"), show_col_types = FALSE) |> # reading in data
+  clean_names() |> # lowercase and underscores in column names
+  rename(date_time = date_time_mdt,  # renaming columns to be shorter 
+         dp = differential_pressure_k_pa,
+         ap = absolute_pressure_k_pa,
+         temp = temperature_c,
+         water_level = water_level_m,
+         bp = barometric_pressure_k_pa) |>
+  mutate(date_time_parsed = mdy_hms(date_time), # telling r the date format
+         date = as_date(date_time_parsed)) |> # making a date column 
+  group_by(date) |> 
+  summarise(avg_dp = mean(dp, na.rm = TRUE),  # averaging the data based on the day
+            avg_ap = mean(ap, na.rm = TRUE),
+            avg_temp = mean(temp, na.rm = TRUE),
+            avg_water_level = mean(water_level, na.rm = TRUE),
+            avg_bp = mean(bp, na.rm = TRUE),
+            total_readings = n(), # the amount of data it used to average
+            .groups = "drop") |>
+  mutate(site = "utc") # creating a new column of the site 
+
+tc_utc_data <- merge(tc_data, utc_data, all = TRUE) # merging the tc and utc data 
+
+isco_data <- merge(
+  x = tc_utc_data, 
+  y = compiled_isotope, 
+  by.x = c("site", "date"), # columns in tc_utc_data
+  by.y = c("location", "date") # matching columns in compiled_isotope
+)
+
+
+
+tc_isco <- isco_data |> 
+  filter(site %in% c("tc"))
+
+utc_isco <- isco_data |> 
+  filter(site %in% c("utc"))
+
+
 ```
+
+## Statistical Tests 
+
+```{r}
+#| label: stat tests
+#| message: false
+#| warning: false
+
+#----------------------- ANOVA of lc-excess and location ---------------------- #
+anova <- aov(lc_excess ~ location, data = compiled_isotope)
+summary(anova)
+
+TukeyHSD(anova)
+
+#----------------------- Correlation od location and date  ---------------------- #
+
+compiled_isotope$date_c <- as.numeric(compiled_isotope$date) - mean(as.numeric(compiled_isotope$date))
+# center the date variable by subtracting its mean.
+
+model <- lmer(
+  lc_excess ~ location + date_c + # fixed effects: location differences + linear time trend
+    (1|site), # random intercept: allows each site to have its own baseline lc-excess, accounting for
+              # the ~36% of variance that's due to site-level clustering rather than location or date
+  data = compiled_isotope)
+
+summary(model)
+# centering doesn't affect slopes, only the intercept's ^ from the (1|site)
+
+anova(model)
+
+
+#----------------------- Correlation with normalized stream distance ---------------------- #
+
+# Trail Creek 6/24 - lc-excess & cumulative dams
+model_6_24_str_tc <- lm(`lc-excess_6-24` ~ normalized_stream_distance_m, data = gradient_tc)
+summary(model_6_24_str_tc)
+
+# Trail Creek 6/30 - lc-excess & cumulative dams
+model_6_30_str_tc <-  lm(`lc-excess_6-30` ~ normalized_stream_distance_m, data = gradient_tc)
+summary(model_6_30_str_tc)
+
+# Trail Creek 7/15 - lc-excess & cumulative dams
+model_7_15_str_tc <- lm(`lc-excess_7-15` ~ normalized_stream_distance_m, data = gradient_tc)
+summary(model_7_15_str_tc)
+
+#__________________________________________________________________________________#
+
+# Coal Creek 6/23 - lc-excess & cumulative dams
+model_6_23_str_cc <-  lm(`lc-excess_6-23` ~ normalized_stream_distance_m, data = gradient_cc)
+summary(model_6_23_str_cc)
+
+# # Coal Creek 7/7 - lc-excess & cumulative dams
+model_7_7_str_cc <-  lm(`lc-excess_7-7` ~ normalized_stream_distance_m, data = gradient_cc)
+summary(model_7_7_str_cc)
+
+#----------------------- Correlation of Trail Creek Upstream and Downstream  ---------------------- #
+cor.test(tc_isco$avg_water_level, tc_isco$lc_excess)
+
+cor.test(utc_isco$avg_water_level, utc_isco$lc_excess)
+
+
+#----------------------- Correlation with cumulative dams ---------------------- #
+gradient_tc$cumulative_dams <- as.numeric(as.character(gradient_tc$cumulative_dams))
+
+# Trail Creek 6/24 - lc-excess & cumulative dams
+model_6_24_cum_tc <- lm(`lc-excess_6-24` ~ cumulative_dams, data = gradient_tc)
+summary(model_6_24_cum_tc)
+
+# Trail Creek 6/30 - lc-excess & cumulative dams
+model_6_30_cum_tc <-  lm(`lc-excess_6-30` ~ cumulative_dams, data = gradient_tc)
+summary(model_6_30_cum_tc)
+
+# Trail Creek 7/15 - lc-excess & cumulative dams
+model_7_15_cum_tc <- lm(`lc-excess_7-15` ~ cumulative_dams, data = gradient_tc)
+summary(model_7_15_cum_tc)
+
+#__________________________________________________________________________________#
+
+gradient_cc$cumulative_dams <- as.numeric(as.character(gradient_cc$cumulative_dams))
+
+# Coal Creek 6/23 - lc-excess & cumulative dams
+model_6_23_cum_cc <-  lm(`lc-excess_6-23` ~ cumulative_dams, data = gradient_cc)
+summary(model_6_23_cum_cc)
+
+# # Coal Creek 7/7 - lc-excess & cumulative dams
+model_7_7_cum_cc <-  lm(`lc-excess_7-7` ~ cumulative_dams, data = gradient_cc)
+summary(model_7_7_cum_cc)
+
+#----------------------- Correlation with cumulative dam length ---------------------- #
+gradient_tc$cumulative_dam_length <- as.numeric(as.character(gradient_tc$cumulative_dam_length))
+
+# Trail Creek 6/24 - lc-excess & cumulative dam length
+model_6_24_cumd_tc <- lm(`lc-excess_6-24` ~ cumulative_dam_length, data = gradient_tc)
+summary(model_6_24_cumd_tc)
+
+# Trail Creek 6/30 - lc-excess & cumulative dam length
+model_6_30_cumd_tc <-  lm(`lc-excess_6-30` ~ cumulative_dam_length, data = gradient_tc)
+summary(model_6_30_cumd_tc)
+
+# Trail Creek 7/15 - lc-excess & cumulative dam length
+model_7_15_cumd_tc <- lm(`lc-excess_7-15` ~ cumulative_dam_length, data = gradient_tc)
+summary(model_7_15_cumd_tc)
+
+#__________________________________________________________________________________#
+
+gradient_cc$cumulative_dam_length <- as.numeric(as.character(gradient_cc$cumulative_dam_length))
+
+# Coal Creek 6/23 - lc-excess & cumulative dam length
+model_6_23_cumd_cc <-  lm(`lc-excess_6-23` ~ cumulative_dam_length, data = gradient_cc)
+summary(model_6_23_cumd_cc)
+
+# Coal Creek 7/7 - lc-excess & cumulative dam length
+model_7_7_cumd_cc <-  lm(`lc-excess_7-7` ~ cumulative_dam_length, data = gradient_cc)
+summary(model_7_7_cumd_cc)
+
+#----------------------- Correlation with average water level ---------------------- #
+
+
+# Trail Creek - lc-excess & average water level
+model_water_tc <- lm(lc_excess ~ avg_water_level, data = tc_isco) 
+summary(model_water_tc)
+
+# Upstream Trail Creek (has no beaver dams)- lc-excess & average water level
+model_water_utc <- lm(lc_excess ~ avg_water_level, data = utc_isco)
+summary(model_water_utc)
+
+
+
+```
+
 
 ## Exploratory Visuals with ALL Sites
 
@@ -221,8 +415,6 @@ ggplot(compiled_isotope, aes(x = factor(month(date, label = TRUE, abbr = TRUE)),
     axis.text.x = element_text(angle = 45, hjust = 1)) # tilting the x axis text
 
 ```
-
-
 
 
 Time series of lc-excess across season, colored by reach, faceted by watershed

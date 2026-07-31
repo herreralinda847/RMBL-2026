@@ -253,7 +253,7 @@ gradient_cc_clean <- gradient_cc |>
 
 
 # Gradient plot
-ggplot(gradient_cc_clean) +
+plot2 <- ggplot(gradient_cc_clean) +
   geom_rect(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = gradient),
             fill = "royalblue2", color = "black", linewidth = 0.3) +
   geom_hline(yintercept = 0, color = "royalblue2", linewidth = 0.4) +

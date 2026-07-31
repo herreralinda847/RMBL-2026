@@ -1,0 +1,327 @@
+---
+title: "exploratory-rmbl"
+author: "Linda Herrera"
+format: pdf
+---
+
+## Packages
+
+```{r}
+#| label: packages
+#| message: false
+#| warning: false
+
+# general use and cleaning
+library(tidyverse)
+library(here)
+library(janitor)
+library(snakecase)
+library(dplyr)
+
+# reading in .xlsx files
+library(readxl)
+
+# arranging plots
+library(patchwork)
+library(ggridges)
+
+```
+
+## Data 
+
+```{r}
+#| label: cleaning and wrangling
+#| message: false
+#| warning: false
+
+# Trail Creek Isotope 
+tc_isotope <- read_csv(here("data", "TC-isotopes_april-june.csv"), show_col_types = FALSE) |> # reading in data
+  clean_names() |> # lowercase and underscores in column names
+  rename(sample = sample_name, # renaming columns to be shorter 
+         delta_d = processed_delta_d,
+         delta_d_std = processed_delta_d_stdev,
+         delta_o = processed_delta_18o,
+         delta_o_std = processed_delta_18o_stdev) |> 
+  mutate(site = case_when( # creating a new column of the site 
+    str_detect(sample, "UTC") ~ "utc",
+    str_detect(sample, "TC")  ~ "tc",
+    TRUE ~ NA_character_ )) |> # For names without UTC or TC
+  filter(!is.na(site)) |>
+  mutate(date = mdy(date)) # telling r the date format
+
+# Downstream Trail Creek 
+tc_data <- read_csv(here("data", "TrailCreek_20260415_export20260630.csv"), show_col_types = FALSE) |> # reading in data
+  clean_names() |> # lowercase and underscores in column names
+  rename(date_time = date_time_mdt, # renaming columns to be shorter 
+         dp = differential_pressure_k_pa,
+         ap = absolute_pressure_k_pa,
+         temp = temperature_c,
+         water_level = water_level_m,
+         bp = barometric_pressure_k_pa) |> 
+  mutate(date_time_parsed = mdy_hms(date_time), # telling r the date format
+         date = as_date(date_time_parsed)) |> # making a date column 
+  group_by(date) |> 
+  summarise(avg_dp = mean(dp, na.rm = TRUE), # averaging the data based on the day
+            avg_ap = mean(ap, na.rm = TRUE),
+            avg_temp = mean(temp, na.rm = TRUE),
+            avg_water_level = mean(water_level, na.rm = TRUE),
+            avg_bp = mean(bp, na.rm = TRUE),
+            total_readings = n(), # the amount of data it used to average
+            .groups = "drop") |>
+  mutate(site = "tc") # creating a new column of the site 
+
+# Upstream Trail Creek
+utc_data <- read_csv(here("data", "UTC_20260403_export20260630.csv"), show_col_types = FALSE) |> # reading in data
+  clean_names() |> # lowercase and underscores in column names
+  rename(date_time = date_time_mdt,  # renaming columns to be shorter 
+         dp = differential_pressure_k_pa,
+         ap = absolute_pressure_k_pa,
+         temp = temperature_c,
+         water_level = water_level_m,
+         bp = barometric_pressure_k_pa) |> 
+  mutate(date_time_parsed = mdy_hms(date_time), # telling r the date format
+         date = as_date(date_time_parsed)) |> # making a date column 
+  group_by(date) |> 
+  summarise(avg_dp = mean(dp, na.rm = TRUE),  # averaging the data based on the day
+            avg_ap = mean(ap, na.rm = TRUE),
+            avg_temp = mean(temp, na.rm = TRUE),
+            avg_water_level = mean(water_level, na.rm = TRUE),
+            avg_bp = mean(bp, na.rm = TRUE),
+            total_readings = n(), # the amount of data it used to average
+            .groups = "drop") |>
+  mutate(site = "utc") # creating a new column of the site 
+
+```
+
+```{r}
+#| label: merge the datasets
+
+tc_utc_data <- merge(tc_data, utc_data, all = TRUE) # merging the tc and utc data 
+
+isotope_data <- merge(tc_utc_data, tc_isotope, by = c("site", "date")) # merging that data with the isotope data
+```
+
+## Exploratory Visuals
+
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(isotope_data, aes(sample = lc_excess)) +
+  stat_qq() +
+  stat_qq_line(color = "black") +
+  labs ( x = "Theoretical Quantiles", y = "Sample Quantiles") +
+  theme_classic()
+
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(data = isotope_data, aes(x = avg_water_level, y = lc_excess)) +
+  geom_point(color = "dodgerblue", size = 2, alpha = 0.7) +
+  geom_smooth(method = "lm", color = "darkblue", fill = "darkblue", se = TRUE) +
+  labs(
+    title = "Relationship between Average Water Level and LC-excess",
+    subtitle = "Analysis of isotope variations",
+    x = "Average Water Level",
+    y = "LC-excess"
+  ) +
+  theme_minimal(base_size = 12) +
+   theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "right")
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(data = isotope_data, aes(x = delta_o, y = lc_excess, color = site)) +
+  geom_point(size = 2.5, alpha = 0.7) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.15, size = 1) + 
+  scale_color_manual(values = c("tc" = "turquoise3", "utc" = "sienna2")) +
+  labs(
+    title = "Line-Conditioned Excess (lc-excess) vs. Delta 18O",
+    subtitle = "Comparing evaporation signals between TC and UTC sites",
+    x = expression(paste(delta, " "^18, "O (\u2030)")), # Formats as δ18O (‰)
+    y = "lc-excess (\u2030)",
+    color = "Site Location") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "right",
+        panel.grid.minor = element_blank())
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(data = isotope_data, 
+       aes(x = date, 
+           y = lc_excess, 
+           color = site, 
+           group = site)) +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "gray50", 
+             size = 0.8) +
+  geom_point(size = 2.5, 
+             alpha = 0.8) +
+  geom_line(size = 1, 
+            alpha = 0.7) + 
+  scale_color_manual(values = c("tc" = "turquoise3", 
+                                "utc" = "sienna2")) +
+  labs(title = "Time-Series of Line-Conditioned Excess (lc-excess)",
+       subtitle = "Values below 0 indicate potential evaporative enrichment",
+       x = "Sampling Date",
+       y = "lc-excess (\u2030)",
+       color = "Site") +
+  ylim(-3,3) +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(data = isotope_data, 
+       aes(x = date,
+           y = d_excess,
+           color = site,
+           group = site)) +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "gray50", 
+             size = 0.8) +
+  geom_point(size = 2.5, 
+             alpha = 0.8) +
+  geom_line(size = 1, 
+            alpha = 0.7) + 
+  scale_color_manual(values = c("tc" = "turquoise3", 
+                                "utc" = "sienna2")) +
+  labs(title = "Time-Series of Deuterium Excess (d-excess)",
+       subtitle = "Values below 0 indicate potential evaporative enrichment",
+       x = "Sampling Date",
+       y = "d-excess (\u2030)",
+       color = "Site") +
+  ylim(-3,12) +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "top")
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+ggplot(isotope_data, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(alpha = 0.7, size = 2) +
+  # Add Global Meteoric Water Line (GMWL: y = 8x + 10)
+  geom_abline(intercept = 10, slope = 8, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+  labs(
+    title = "Dual-Isotope Plot with GMWL",
+    x = expression(paste(delta^{18}, "O (‰)")),
+    y = expression(paste(delta, "D (‰)")),
+    color = "Site"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+```
+
+
+```{r}
+
+ggplot(isotope_data, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(alpha = 0.7, size = 2) +
+  # Add Local Mean Water Line (LMWL: y = 7.94 x + 9.37 )
+  geom_abline(intercept = 9.37, slope = 7.94, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+  labs(
+    title = "Dual-Isotope Plot with LMWL",
+    x = expression(paste(delta^{18}, "O (‰)")),
+    y = expression(paste(delta, "D (‰)")),
+    color = "Site"
+  ) +
+  theme_minimal() +
+   theme(plot.title = element_text(face = "bold", size = 14))
+
+```
+
+
+```{r}
+#| label: timeseries between utc and tc
+#| message: false
+#| warning: false
+
+ggplot(isotope_data, aes(x = date, y = lc_excess, color = site)) +
+  geom_line(linewidth = 0.5) +
+  geom_point(size = 1.5) +
+  labs(
+    title = "Temporal Variations in Line-Conditioned Excess",
+    x = "Date",
+    y = "lc-excess (‰)",
+    color = "Site"
+  ) +
+  facet_wrap(~site, scales = "free_y") +  # Compare across sites easily
+  theme_minimal() + 
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+```
+
+
+```{r}
+#| label: waterlevel vs lc-excess
+#| message: false
+#| warning: false
+
+ggplot(isotope_data, aes(x = avg_water_level, y = lc_excess)) +
+  geom_point(aes(color = avg_temp), size = 2.5, alpha = 0.8) +
+  geom_smooth(method = "lm", color = "black", linetype = "dotted", se = FALSE) +
+  scale_color_viridis_c(option = "plasma") +  # Beautiful temperature gradient
+  labs(
+    title = "Water Level vs. Evaporation Indicator (lc-excess)",
+    x = "Average Water Level",
+    y = "lc-excess (‰)",
+    color = "Avg Temp (°C)"
+  ) +
+  theme_minimal() + 
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+```
+
+
+```{r}
+#| label: boxplot-monthly
+#| message: false
+#| warning: false
+
+ggplot(isotope_data, aes(x = factor(month(date, label = TRUE, abbr = TRUE)), y = lc_excess)) +
+  geom_boxplot(aes(fill = factor(month(date))), show.legend = FALSE) +
+  facet_wrap(~site, scales = "free_y") +
+   scale_fill_manual(values = c("#8dd3c7", "#fb8072", "#80b1d3")) +
+ labs(
+    title = "Monthly Variations in Evaporative Fraction (lc-excess) Across Study Sites",
+    subtitle = "Seasonal isotopic shifts indicating changes in local evaporation-condensation histories",
+    x = "Month",
+    y = "lc-excess (‰)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+    strip.text = element_text(face = "bold", size = 11), # Emphasize site names
+    axis.text.x = element_text(angle = 45, hjust = 1)   # Tilt month labels if they overlap
+  )
+
+```
+
