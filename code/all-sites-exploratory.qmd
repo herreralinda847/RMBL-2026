@@ -452,7 +452,7 @@ ggplot(compiled_isotope, aes(x = date, y = lc_excess, color = site, group = inte
 
 ```
 
-Dual-isotope plot (δ18O vs δD) with LMWL reference
+Dual-isotope plot (δ18O vs δD) with GMWL reference
 
 ```{r}
 #| label: dual

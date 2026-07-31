@@ -46,6 +46,9 @@ gradient_cc <- read_csv(here("data", "cc_gradient_data.csv"))
 
 metadata <- read_csv(here("data", "metadata.csv"))
 
+site_order <- c("tc_isco", "tc_1", "tc_15", "tc_2", "tc_3",
+                "utc_isco", "tc_ds", "tc_mid", "tc_us")
+
 trail_creek <- compiled_isotope |> 
   filter(location %in% c("utc", "tc"))
 
@@ -57,7 +60,7 @@ coal_creek_all <- compiled_isotope |>
  filter(location %in% c("cc"))
 
 italian_creek <- compiled_isotope |> 
-  filter(location == "ic")
+  filter(location == "it")
 
 
 # Downstream Trail Creek 
@@ -256,6 +259,137 @@ Figure 2:
 combined_stacked <- plot1 / plot2 
 
 combined_stacked # print the graph 
+```
+
+
+```{r}
+
+# averaging the lc-excess and including standard error
+delta_summary <- compiled_isotope |>
+  mutate(site = factor(site, levels = site_order)) |>
+  group_by(site) |>
+  summarise(
+    mean_lc = mean(lc_excess, na.rm = TRUE),
+    se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+# creating a plot to show the mean lc-excess of each site (trail creek)
+plot3 <- ggplot(delta_summary, aes(x = site, y = mean_lc, fill = site)) +
+  geom_col(color = "black", width = 0.7) +
+  geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
+                width = 0.3,
+                color = "black") +
+  scale_x_discrete(limits = c("tc_isco", "tc_1", "tc_15", "tc_2", "tc_3", "utc_isco", "tc_ds", "tc_mid", "tc_us"),
+  labels = c("tc_isco" = "TC-ISCO", "tc_1" = "TC-1", "tc_15" = "TC-1.5", "tc_2" = "TC-2",
+             "tc_3" = "TC-3", "tc_ds" = "IT-DS", "tc_mid" = "TC-Mid", "tc_us" = "TC-US",
+             "utc_isco" = "UTC-ISCO")) +
+  scale_fill_viridis_d(option ="G") + # color palette 
+  theme_minimal() +
+  labs(title = "Trail Creek",
+       x = "Sampling Site",
+       y = "Mean LC Excess") +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1), # tilt labels 
+        legend.position = "none")
+
+# averaging the lc-excess and including standard error
+delta_sum_cc <- coal_creek |>
+  group_by(site) |>
+  summarise(
+    mean_lc = mean(lc_excess, na.rm = TRUE),
+    se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+
+# creating a plot to show the mean lc-excess of each site (coal creek)
+plot4 <- ggplot(delta_sum_cc, aes(x = site, y = mean_lc, fill = site)) +
+  geom_col(color = "black", width = 0.7) +
+  geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
+                width = 0.3, color = "black") +
+  scale_fill_viridis_d(option = "G") +
+  theme_minimal() +
+  labs(title = "Coal Creek",
+       x = "Sampling Site",
+       y = "Mean LC Excess") +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+# averaging the lc-excess and including standard error
+delta_summary_it <- italian_creek |>
+  group_by(site) |>
+  summarise(
+    mean_lc = mean(lc_excess, na.rm = TRUE),
+    se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+
+# creating a plot to show the mean lc-excess of each site (italian creek)
+plot5 <- ggplot(delta_summary_it, aes(x = site, y = mean_lc, fill = site)) +
+  geom_col(color = "black", width = 0.7) +
+  geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
+                width = 0.3, color = "black") +
+  scale_fill_viridis_d(option = "G") +
+  theme_minimal() +
+  labs(title = "Italian Creek",
+       x = "Sampling Site",
+       y = "Mean LC Excess") +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+
+
+```
+
+Figure 3: 
+```{r}
+#| label: Figure 3
+#| message: false
+#| warning: false
+#| fig-height: 7
+#| fig-width: 15
+
+
+combined_stacked_2 <- plot3 + plot4 + plot5
+
+combined_stacked_2 # print the graph 
+```
+
+Figure 4:
+
+```{r}
+#| label: Figure 4
+#| message: false
+#| warning: false
+#| fig-height: 5
+#| fig-width: 7
+
+# Add Global Meteoric Water Line (GMWL: y = 8x + 10)
+gmwl_slope <- 8.00
+gmwl_intercept <- 10.00 
+
+plot6 <- ggplot(compiled_isotope, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(size = 2.5, alpha = 0.7) +
+  geom_abline(slope = gmwl_slope, intercept = gmwl_intercept, 
+              linetype = "dashed", color = "black", linewidth = 0.8) +
+  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek",
+                                                         utc = "Upstream Trail Creek",
+                                                         cc = "Coal Creek",
+                                                         it = "Italian Creek"))) +
+  labs(title = "Dual Isotope Plot: \u03b418O vs \u03b4D",
+       subtitle = "Dashed line = Global Meteoric Water Line",
+       x = expression(paste(delta^18, "O (\u2030)")),
+       y = expression(paste(delta, "D (\u2030)")),
+       color = "Reach") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        legend.position = "none")
+
+plot6
+
 ```
 
 
