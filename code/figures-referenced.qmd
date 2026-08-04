@@ -21,8 +21,8 @@ library(wesanderson)
 library(lme4)
 library(ggplot2)
 library(patchwork)
+library(ggpmisc) 
 ```
-
 
 ## Data 
 
@@ -46,25 +46,40 @@ gradient_cc <- read_csv(here("data", "cc_gradient_data.csv"))
 
 metadata <- read_csv(here("data", "metadata.csv"))
 
-site_order <- c("tc_isco", "tc_1", "tc_15", "tc_2", "tc_3",
-                "utc_isco", "tc_ds", "tc_mid", "tc_us")
+site_order <- c("tc_us", "tc_mid", "tc_ds", "tc_1", "tc_15", "tc_2", "tc_3") 
+
+trail_creek_isco <- compiled_isotope |> 
+  filter(site %in% c("utc_isco", "tc_isco"))
 
 trail_creek <- compiled_isotope |> 
-  filter(location %in% c("utc", "tc"))
+  filter(site %in% site_order) |> 
+  mutate(site = factor(site, levels = site_order)) |> 
+  arrange(site)
 
 coal_creek <- compiled_isotope |> 
-  filter(location %in% c("cc")) |> 
-  filter(site != "coal_3")
-
-coal_creek_all <- compiled_isotope |> 
  filter(location %in% c("cc"))
 
 italian_creek <- compiled_isotope |> 
   filter(location == "it")
 
+trail_creek_isco <- read_csv(here("data", "trail_creek_compiled_ISCO.csv")) |> 
+  clean_names() |> # lowercase and underscores in column names
+  rename(sample = sample_name, # renaming columns to be shorter 
+         delta_d = processed_delta_d,
+         delta_d_std = processed_delta_d_stdev,
+         delta_o = processed_delta_18o,
+         delta_o_std = processed_delta_18o_stdev) |> 
+  mutate(date = mdy(date))# telling r the date format
+
+utc_isco <- trail_creek_isco |> 
+  filter(site == "utc_isco")
+
+tc_isco <- trail_creek_isco |> 
+   filter(site == "tc_isco")
+
 
 # Downstream Trail Creek 
-tc_data <- read_csv(here("data", "TrailCreek_2026-07-23-15.csv"), show_col_types = FALSE) |> # reading in data
+tc_metrics <- read_csv(here("data", "TrailCreek_2026-07-23-15.csv"), show_col_types = FALSE) |> # reading in data
   clean_names() |> # lowercase and underscores in column names
   rename(date_time = date_time_mdt, # renaming columns to be shorter 
          dp = differential_pressure_k_pa,
@@ -85,7 +100,7 @@ tc_data <- read_csv(here("data", "TrailCreek_2026-07-23-15.csv"), show_col_types
   mutate(site = "tc") # creating a new column of the site 
 
 # Upstream Trail Creek
-utc_data <- read_csv(here("data", "UTC_2026-07-23-15.csv"), show_col_types = FALSE) |> # reading in data
+utc_metrics <- read_csv(here("data", "UTC_2026-07-23-15.csv"), show_col_types = FALSE) |> # reading in data
   clean_names() |> # lowercase and underscores in column names
   rename(date_time = date_time_mdt,  # renaming columns to be shorter 
          dp = differential_pressure_k_pa,
@@ -105,44 +120,53 @@ utc_data <- read_csv(here("data", "UTC_2026-07-23-15.csv"), show_col_types = FAL
             .groups = "drop") |>
   mutate(site = "utc") # creating a new column of the site 
 
-tc_utc_data <- merge(tc_data, utc_data, all = TRUE) # merging the tc and utc data 
+tc_utc_metrics <- merge(tc_metrics, utc_metrics, all = TRUE) # merging the tc and utc data 
 
 isco_data <- merge(
-  x = tc_utc_data, 
+  x = tc_utc_metrics, 
   y = compiled_isotope, 
   by.x = c("site", "date"), # columns in tc_utc_data
   by.y = c("location", "date") # matching columns in compiled_isotope
 )
 
-tc_isco <- isco_data |> 
-  filter(site %in% c("tc"))
 
-utc_isco <- isco_data |> 
-  filter(site %in% c("utc"))
-
+discharge_tc_isco <- read_csv(here("data", "discharge_tc_isco.csv"))
+  
 ```
 
+## Figures
 
-Figure 1: Time-Series of Line-Conditioned Excess (lc-excess)
+
+Figure 1: Time-Series of Line-Conditioned Excess (lc-excess) of ISCO's
 
 ```{r}
 #| label: figure-1
 #| message: false
 #| warning: false
 
-ggplot(data = compiled_isotope, 
+ggplot(data = trail_creek_isco, 
        aes(x = date, 
            y = lc_excess, 
-           color = location, 
-           group = location)) +
+           color = site, 
+           group = site)) +
   geom_hline(yintercept = 0, 
              linetype = "dashed", 
              color = "gray50", 
              size = 0.8) +
   geom_point(size = 2.5, 
              alpha = 0.8) +
-  geom_line(linewidth = 1, 
-            alpha = 0.7) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.15, linewidth = 1) +
+  
+  # adds the equation and R-squared text automatically for each date line
+  stat_poly_eq(
+    aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "*\", \"*")),
+    formula = y ~ x,
+    parse = TRUE,
+    label.x = "left", # positions the labels horizontally
+    label.y = "top", # positions the labels vertically 
+    vstep = 0.05, # spacing between the text lines so they do not overlap
+    size = 3.5) +
+  
   labs(title = "Time-Series of Line-Conditioned Excess (lc-excess)",
        subtitle = "Values below 0 indicate potential evaporative enrichment",
        x = "Sampling Date",
@@ -155,6 +179,150 @@ ggplot(data = compiled_isotope,
         legend.position = "top")
 
 ```
+
+
+
+Figure 1.1: Sampling Site and lc-excess (Trail Creek)
+
+```{r}
+#| label: figure-1.1-with-equations
+#| message: false
+#| warning: false
+
+ggplot(data = trail_creek, aes(x = site, y = lc_excess, color = date, group = date)) + 
+  # reference line at 0
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray", linewidth = 0.8) + 
+  
+  # adds a linear regression line for each date group
+  geom_smooth(method = "lm", se = TRUE, linewidth = 1, alpha = 0.15) +
+  
+  # adds the equation and R-squared text automatically for each date line
+  stat_poly_eq(
+    aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "*\", \"*")),
+    formula = y ~ x,
+    parse = TRUE,
+    label.x = "left", # positions the labels horizontally
+    label.y = "top", # positions the labels vertically 
+    vstep = 0.05, # spacing between the text lines so they do not overlap
+    size = 3.5) +
+  
+  # points for each site's value
+  geom_point(size = 2.5, alpha = 0.8) + 
+  
+  labs(
+    title = "Linear Trends of lc-excess across Sites by Date",
+    subtitle = "Trends track changes from upstream to downstream factors",
+    x = "Sampling Site (Upstream to Downstream)",
+    y = "lc-excess (\u2030)",
+    color = "Sampling Date"
+  ) + 
+  theme_bw() + 
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    panel.grid.minor = element_blank(), 
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "right"
+  )
+
+```
+
+
+Figure 1.2: Sampling Site and lc-excess (Coal Creek)
+
+```{r}
+#| label: figure-1.2-with-equations
+#| message: false
+#| warning: false
+
+ggplot(data = coal_creek, aes(x = site, y = lc_excess, color = date, group = date)) + 
+  # reference line at 0
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray", linewidth = 0.8) + 
+  
+  # adds a linear regression line for each date group
+  geom_smooth(method = "lm", se = TRUE, linewidth = 1, alpha = 0.15) +
+  
+  # adds the equation and R-squared text automatically for each date line
+  stat_poly_eq(
+    aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "*\", \"*")),
+    formula = y ~ x,
+    parse = TRUE,
+    label.x = "left", # positions the labels horizontally
+    label.y = "top", # positions the labels vertically 
+    vstep = 0.05, # spacing between the text lines so they do not overlap
+    size = 3.5
+  ) +
+  
+  # points for each site's value
+  geom_point(size = 2.5, alpha = 0.5) + 
+  
+  labs(
+    title = "Linear Trends of lc-excess across Sites by Date",
+    subtitle = "Trends track changes from upstream to downstream factors",
+    x = "Sampling Site (Upstream to Downstream)",
+    y = "lc-excess (\u2030)",
+    color = "Sampling Date"
+  ) + 
+  theme_bw() + 
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    panel.grid.minor = element_blank(), 
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "right"
+  )
+
+```
+
+
+Figure 1.3: Sampling Site and lc-excess (Italian Creek)
+
+```{r}
+#| label: figure-1.3-with-equations
+#| message: false
+#| warning: false
+
+ggplot(data = italian_creek, aes(x = site, y = lc_excess, color = date, group = date)) + 
+  # reference line at 0
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray", linewidth = 0.8) + 
+  
+  # adds a linear regression line for each date group
+  geom_smooth(method = "lm", se = TRUE, linewidth = 1, alpha = 0.15) +
+  
+  # adds the equation and R-squared text automatically for each date line
+  stat_poly_eq(
+    aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "*\", \"*")),
+    formula = y ~ x,
+    parse = TRUE,
+    label.x = "left", # positions the labels horizontally
+    label.y = "bottom", # positions the labels vertically 
+    vstep = 0.05, # spacing between the text lines so they do not overlap
+    size = 3.5
+  ) +
+  
+  # points for each site's value
+  geom_point(size = 2.5, alpha = 0.5) + 
+  
+  labs(
+    title = "Linear Trends of lc-excess across Sites by Date",
+    subtitle = "Trends track changes from upstream to downstream factors",
+    x = "Sampling Site (Upstream to Downstream)",
+    y = "lc-excess (\u2030)",
+    color = "Sampling Date"
+  ) + 
+  theme_bw() + 
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    panel.grid.minor = element_blank(), 
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "right"
+  )
+
+```
+
+
+
+
+
+
 
 
 
@@ -265,14 +433,13 @@ combined_stacked # print the graph
 ```{r}
 
 # averaging the lc-excess and including standard error
-delta_summary <- compiled_isotope |>
+delta_summary <- trail_creek |>
   mutate(site = factor(site, levels = site_order)) |>
   group_by(site) |>
   summarise(
     mean_lc = mean(lc_excess, na.rm = TRUE),
     se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
-    .groups = "drop"
-  )
+    .groups = "drop")
 
 # creating a plot to show the mean lc-excess of each site (trail creek)
 plot3 <- ggplot(delta_summary, aes(x = site, y = mean_lc, fill = site)) +
@@ -280,10 +447,8 @@ plot3 <- ggplot(delta_summary, aes(x = site, y = mean_lc, fill = site)) +
   geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
                 width = 0.3,
                 color = "black") +
-  scale_x_discrete(limits = c("tc_isco", "tc_1", "tc_15", "tc_2", "tc_3", "utc_isco", "tc_ds", "tc_mid", "tc_us"),
-  labels = c("tc_isco" = "TC-ISCO", "tc_1" = "TC-1", "tc_15" = "TC-1.5", "tc_2" = "TC-2",
-             "tc_3" = "TC-3", "tc_ds" = "IT-DS", "tc_mid" = "TC-Mid", "tc_us" = "TC-US",
-             "utc_isco" = "UTC-ISCO")) +
+  scale_x_discrete(labels = c("tc_1" = "TC-1", "tc_15" = "TC-1.5", "tc_2" = "TC-2",
+             "tc_3" = "TC-3", "tc_ds" = "TC-DS", "tc_mid" = "TC-Mid", "tc_us" = "TC-US")) +
   scale_fill_viridis_d(option ="G") + # color palette 
   theme_minimal() +
   labs(title = "Trail Creek",
@@ -292,6 +457,8 @@ plot3 <- ggplot(delta_summary, aes(x = site, y = mean_lc, fill = site)) +
   theme(plot.title = element_text(face = "bold", size = 14),
         axis.text.x = element_text(angle = 45, hjust = 1), # tilt labels 
         legend.position = "none")
+
+plot3
 
 # averaging the lc-excess and including standard error
 delta_sum_cc <- coal_creek |>
@@ -392,5 +559,31 @@ plot6
 
 ```
 
+
+Discharge 
+```{r}
+#| label: discharge-tc
+#| message: false
+#| warning: false
+
+
+model_discharge_tc <- lm(lc_excess ~ discharge, data = discharge_tc_isco)
+summary(model_discharge_tc)
+
+ggplot(discharge_tc_isco, aes(x = discharge, y = lc_excess)) +
+  geom_point(size = 2.5, alpha = 0.7, color = "#2a78d6") +
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, color = "black", linetype = "dashed") +
+  stat_poly_eq(
+    use_label(c("eq", "R2", "P")),
+    formula = y ~ x,
+    label.x = "left", label.y = "top",
+    size = 3.5
+  ) +
+  labs(title = "TC-ISCO: Discharge vs. lc-excess",
+       x = expression(paste("Discharge (cfs)")),
+       y = "lc-excess (\u2030)") +
+  theme_bw()
+
+```
 
 

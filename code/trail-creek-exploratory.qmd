@@ -123,10 +123,6 @@ lm(lc_excess ~ cumulative_dam_length)
 
 
 
-```{r}
-```
-
-
 
 ```{r}
 #| label: average-water-level-and-lc-excess

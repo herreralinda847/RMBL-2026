@@ -58,11 +58,26 @@ coal_creek_all <- compiled_isotope |>
  filter(location %in% c("cc"))
 
 italian_creek <- compiled_isotope |> 
-  filter(location == "ic")
+  filter(location == "it")
+
+trail_creek_isco <- read_csv(here("data", "trail_creek_compiled_ISCO.csv")) |> 
+  clean_names() |> # lowercase and underscores in column names
+  rename(sample = sample_name, # renaming columns to be shorter 
+         delta_d = processed_delta_d,
+         delta_d_std = processed_delta_d_stdev,
+         delta_o = processed_delta_18o,
+         delta_o_std = processed_delta_18o_stdev) |> 
+  mutate(date = mdy(date))# telling r the date format
+
+utc_isco <- trail_creek_isco |> 
+  filter(site == "utc_isco")
+
+tc_isco <- trail_creek_isco |> 
+   filter(site == "tc_isco")
 
 
 # Downstream Trail Creek 
-tc_data <- read_csv(here("data", "TrailCreek_2026-07-23-15.csv"), show_col_types = FALSE) |> # reading in data
+tc_metrics <- read_csv(here("data", "TrailCreek_2026-07-23-15.csv"), show_col_types = FALSE) |> # reading in data
   clean_names() |> # lowercase and underscores in column names
   rename(date_time = date_time_mdt, # renaming columns to be shorter 
          dp = differential_pressure_k_pa,
@@ -83,7 +98,7 @@ tc_data <- read_csv(here("data", "TrailCreek_2026-07-23-15.csv"), show_col_types
   mutate(site = "tc") # creating a new column of the site 
 
 # Upstream Trail Creek
-utc_data <- read_csv(here("data", "UTC_2026-07-23-15.csv"), show_col_types = FALSE) |> # reading in data
+utc_metrics <- read_csv(here("data", "UTC_2026-07-23-15.csv"), show_col_types = FALSE) |> # reading in data
   clean_names() |> # lowercase and underscores in column names
   rename(date_time = date_time_mdt,  # renaming columns to be shorter 
          dp = differential_pressure_k_pa,
@@ -103,23 +118,14 @@ utc_data <- read_csv(here("data", "UTC_2026-07-23-15.csv"), show_col_types = FAL
             .groups = "drop") |>
   mutate(site = "utc") # creating a new column of the site 
 
-tc_utc_data <- merge(tc_data, utc_data, all = TRUE) # merging the tc and utc data 
+tc_utc_metrics <- merge(tc_metrics, utc_metrics, all = TRUE) # merging the tc and utc data 
 
 isco_data <- merge(
-  x = tc_utc_data, 
+  x = tc_utc_metrics, 
   y = compiled_isotope, 
   by.x = c("site", "date"), # columns in tc_utc_data
   by.y = c("location", "date") # matching columns in compiled_isotope
 )
-
-
-
-tc_isco <- isco_data |> 
-  filter(site %in% c("tc"))
-
-utc_isco <- isco_data |> 
-  filter(site %in% c("utc"))
-
 
 ```
 
