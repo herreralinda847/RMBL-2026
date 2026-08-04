@@ -22,6 +22,7 @@ library(lme4)
 library(ggplot2)
 library(patchwork)
 library(ggpmisc) 
+library(ggsignif)
 ```
 
 ## Data 
@@ -496,6 +497,7 @@ combined_stacked <- plot1 + plot2 + plot2_5
 combined_stacked # print the graph 
 ```
 
+## Figure 3
 
 ```{r}
 
@@ -508,23 +510,25 @@ delta_summary <- trail_creek |>
     se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
     .groups = "drop")
 
-# creating a plot to show the mean lc-excess of each site (trail creek)
+# creating a plot to show the mean lc-excess of each site (coal creek)
 plot3 <- ggplot(delta_summary, aes(x = site, y = mean_lc, fill = site)) +
   geom_col(color = "black", width = 0.7) +
   geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
                 width = 0.3,
                 color = "black") +
-  scale_x_discrete(labels = c("tc_1" = "BDA-1", "tc_15" = "BDA-1.5", "tc_2" = "BDA-2",
-             "tc_3" = "BDA-3", "tc_ds" = "TC-DS", "tc_mid" = "TC-MID", "tc_us" = "TC-US")) +
+  scale_x_discrete(labels = c("tc_1" = "BDA-1", "tc_15" = "BDA-1.5", 
+                              "tc_2" = "BDA-2", "tc_3" = "BDA-3", 
+                              "tc_ds" = "TC-DS", "tc_mid" = "TC-MID", 
+                              "tc_us" = "TC-US")) +
   scale_fill_viridis_d(option ="G", labels = c("tc_1" = "BDA-1", "tc_15" = "BDA-1.5", "tc_2" = "BDA-2",
-             "tc_3" = "BDA-3", "tc_ds" = "TC-DS", "tc_mid" = "TC-MID", "tc_us" = "TC-US")) + # color palette 
+             "tc_3" = "BDA-3", "tc_ds" = "TC-DS", "tc_mid" = "TC-MID", "tc_us" = "TC-US")) +
   theme_minimal() +
   labs(title = "Trail Creek",
        x = "Sampling Site",
        y = "Mean lc-excess (\u2030)") +
   theme(plot.title = element_text(face = "bold", size = 14),
-        axis.text.x = element_text(angle = 45, hjust = 1), # tilt labels 
-        legend.position = "bottom")
+        axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position = "bottom") 
 
 plot3
 
@@ -534,24 +538,23 @@ delta_sum_cc <- coal_creek |>
   summarise(
     mean_lc = mean(lc_excess, na.rm = TRUE),
     se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
-    .groups = "drop"
-  )
-
+    .groups = "drop")
 
 # creating a plot to show the mean lc-excess of each site (coal creek)
-plot4 <- ggplot(delta_sum_cc, aes(x = site, y = mean_lc, fill = site)) +
-  geom_col(color = "black", width = 0.7) +
-  geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
-                width = 0.3, color = "black") +
-  scale_fill_viridis_d(option = "G", labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" = "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6")) +
-    scale_x_discrete(labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" = "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6")) +
-  theme_minimal() +
-  labs(title = "Coal Creek",
-       x = "Sampling Site",
-       y = "Mean lc-excess (\u2030)") +
-  theme(plot.title = element_text(face = "bold", size = 14),
-        axis.text.x = element_text(angle = 45, hjust = 1),
+plot4 <- ggplot(delta_sum_cc, aes(x = site, y = mean_lc, fill = site)) + 
+  geom_col(color = "black", width = 0.7) + 
+  geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc), 
+                width = 0.3, color = "black") + 
+  scale_fill_viridis_d(option = "G", labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" = "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6")) + 
+  scale_x_discrete(labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" = "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6")) + 
+  theme_minimal() + 
+  labs(title = "Coal Creek", 
+       x = "Sampling Site", 
+       y = "Mean lc-excess (\u2030)") + 
+  theme(plot.title = element_text(face = "bold", size = 14), 
+        axis.text.x = element_text(angle = 45, hjust = 1), 
         legend.position = "bottom")
+
 plot4
 
 # averaging the lc-excess and including standard error
@@ -560,15 +563,13 @@ delta_summary_it <- italian_creek |>
   summarise(
     mean_lc = mean(lc_excess, na.rm = TRUE),
     se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
-    .groups = "drop"
-  )
-
+    .groups = "drop")
 
 # creating a plot to show the mean lc-excess of each site (italian creek)
 plot5 <- ggplot(delta_summary_it, aes(x = site, y = mean_lc, fill = site)) +
   geom_col(color = "black", width = 0.7) +
   geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
-                width = 0.3, color = "black") +
+                width = 0.3, color = "black") + 
   scale_fill_viridis_d(option = "G", labels = c("italian_1" = "IT-1", "italian_2" = "IT-2", "italian_3" = "IT-3", "italian_4" = "IT-4", "italian_5" = "IT-5")) +
   scale_x_discrete(labels = c("italian_1" = "IT-1", "italian_2" = "IT-2", "italian_3" = "IT-3", "italian_4" = "IT-4", "italian_5" = "IT-5")) +
   theme_minimal() +
