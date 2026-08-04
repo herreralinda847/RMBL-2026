@@ -44,6 +44,8 @@ gradient_tc <- read_csv(here("data", "tc_gradient_data.csv"))
 
 gradient_cc <- read_csv(here("data", "cc_gradient_data.csv"))
 
+gradient_it <- read_csv(here("data", "it_gradient_data.csv"))
+
 metadata <- read_csv(here("data", "metadata.csv"))
 
 site_order <- c("tc_us", "tc_mid", "tc_ds", "tc_1", "tc_15", "tc_2", "tc_3") 
@@ -324,14 +326,13 @@ plot1_1 + plot1_2 + plot1_3
 
 ```
 
-
-
 ```{r}
 #| label: Code-for-Figure-2
 #| message: false
 #| warning: false
 
-# Buildings a look up table of stream distances
+# Spatial variations in Δlc-excess/Δx across sampling dates
+# Buildings a look up table of stream distances Trail Creek
 distances <- tibble(site = c("TC-P3-US", "TC-P3-mid", "TC-P3-DS", "TC-BDA1",
                              "TC-BDA1.5", "TC-BDA2", "TC-BDA3"),
                     dist_m = c(57.6, 333, 654, 1160, 1620, 2240, 3150)) |> 
@@ -339,7 +340,7 @@ distances <- tibble(site = c("TC-P3-US", "TC-P3-mid", "TC-P3-DS", "TC-BDA1",
          xmin = lag(dist_m, default = 0)) # previous site's distance, 0 for first
 
 # Creating a filtered data frame for lc-excess
-gradient_lc_clean <- gradient_tc |>
+gradient_tc_clean <- gradient_tc |>
   select(site, normalized_stream_distance_m, `Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`, `Δlc-excess/Δx_7-15`) |> 
   pivot_longer( cols = c(`Δlc-excess/Δx_6-24`, `Δlc-excess/Δx_6-30`, `Δlc-excess/Δx_7-15`),
                 names_to = "date",
@@ -353,7 +354,7 @@ gradient_lc_clean <- gradient_tc |>
   filter(!is.na(gradient))
 
 # Gradient plot
-plot1 <- ggplot(gradient_lc_clean) +
+plot1 <- ggplot(gradient_tc_clean) +
   geom_rect(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = gradient),
             fill = "royalblue2", color = "black", linewidth = 0.3) +
   geom_hline(yintercept = 0, color = "royalblue2", linewidth = 0.4) +
@@ -361,16 +362,18 @@ plot1 <- ggplot(gradient_lc_clean) +
   scale_x_continuous(
     breaks = distances$dist_m,
     labels = distances$site) +
-  labs(title = "Trail Creek: Spatial variations in Δlc-excess/Δx across sampling dates",
-       x = "Normalized stream distance (km)",
+  labs(title = "Trail Creek",
+       x = "Normalized stream distance (m)",
        y = expression(paste(Delta, "lc-excess / ", Delta, "x ((\u2030)/km)"))) +
   theme_bw(base_size = 11) +
   theme(plot.title = element_text(face = "bold", size = 14),
         panel.grid.minor = element_blank(),
         strip.text = element_text(face = "bold"),
         axis.text.x = element_text(angle = 45, hjust = 1))
-# Buildings a look up table of stream distances
+plot1
 
+
+# Buildings a look up table of stream distances Coal Creek
 distances_cc <- tibble(
   site = c("CC1", "CC2", "CC4", "CC5", "CC6"),
   dist_m = c(0, 1496, 2006, 2478, 2885)) |> 
@@ -404,8 +407,8 @@ plot2 <- ggplot(gradient_cc_clean) +
     breaks = distances_cc$dist_m,
     labels = distances_cc$site) +
   labs(
-    title = "Coal Creek: Spatial variations in Δlc-excess/Δx across sampling dates",
-    x = "Normalized stream distance (km)",
+    title = "Coal Creek",
+    x = "Normalized stream distance (m)",
     y = expression(paste(Delta, "lc-excess / ", Delta, "x ((\u2030)/km)"))) +
   theme_bw(base_size = 11) +
   theme(
@@ -416,6 +419,68 @@ plot2 <- ggplot(gradient_cc_clean) +
 
 plot2
 
+
+
+library(tidyverse)
+
+# 1. Build the look-up table for Italian Creek
+distances_it <- tibble(
+  site = c("IT1", "IT2", "IT3", "IT4", "IT5"), 
+  dist_m = c(0, 793.37, 1665.83, 2385.13, 2963.62) # Keeps a clean width layout like plot1
+) |> 
+  mutate(
+    xmax = dist_m, 
+    xmin = lag(dist_m, default = 0)
+  )
+
+# 2. Creating a filtered data frame for Italian Creek (Fixed Column Names)
+gradient_it_clean <- gradient_it |> 
+  select(site, normalized_stream_distance_m, `d_lc/d_x_7_1`, `d_lc/d_x_7_16`, `d_lc/d_x_7_23`) |> 
+  pivot_longer(
+    cols = c(`d_lc/d_x_7_1`, `d_lc/d_x_7_16`, `d_lc/d_x_7_23`), 
+    names_to = "date", 
+    values_to = "gradient"
+  ) |> 
+  mutate(
+    date = case_when(
+      date == "d_lc/d_x_7_1"  ~ "2026-07-01", 
+      date == "d_lc/d_x_7_16" ~ "2026-07-16", 
+      date == "d_lc/d_x_7_23" ~ "2026-07-23"
+    ), 
+    gradient = as.numeric(gradient)
+  ) |> 
+left_join(distances_it |> select(site, xmin, xmax),
+            by = "site") |>
+  mutate(site = factor(site, levels = distances_it$site)) |> # FIXED: Uses distances_it instead of distances
+  filter(!is.na(gradient))
+
+# 3. Gradient plot for Italian Creek
+plot2_5 <- ggplot(gradient_it_clean) + 
+  geom_rect(
+    aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = gradient), 
+    fill = "royalblue2", color = "black", linewidth = 0.3
+  ) + 
+  geom_hline(yintercept = 0, color = "royalblue2", linewidth = 0.4) + 
+  facet_wrap(~ date, nrow = 1) + 
+  scale_x_continuous(
+    breaks = distances_it$dist_m, 
+    labels = distances_it$site
+  ) + 
+  labs(
+    title = "Italian Creek", 
+    x = "Normalized stream distance (m)", 
+    y = expression(paste(Delta, "lc-excess / ", Delta, "x ((\u2030)/km)"))
+  ) + 
+  theme_bw(base_size = 11) + 
+  theme(
+    plot.title = element_text(face = "bold", size = 14), 
+    panel.grid.minor = element_blank(), 
+    strip.text = element_text(face = "bold"), 
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+plot2_5
+
 ```
 
 Figure 2: 
@@ -423,11 +488,10 @@ Figure 2:
 #| label: Figure 2
 #| message: false
 #| warning: false
-#| fig-height: 10
-#| fig-width: 8
+#| fig-height: 6
+#| fig-width: 17
 
-
-combined_stacked <- plot1 / plot2 
+combined_stacked <- plot1 + plot2 + plot2_5
 
 combined_stacked # print the graph 
 ```
@@ -450,16 +514,17 @@ plot3 <- ggplot(delta_summary, aes(x = site, y = mean_lc, fill = site)) +
   geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
                 width = 0.3,
                 color = "black") +
-  scale_x_discrete(labels = c("tc_1" = "TC-1", "tc_15" = "TC-1.5", "tc_2" = "TC-2",
-             "tc_3" = "TC-3", "tc_ds" = "TC-DS", "tc_mid" = "TC-Mid", "tc_us" = "TC-US")) +
-  scale_fill_viridis_d(option ="G") + # color palette 
+  scale_x_discrete(labels = c("tc_1" = "BDA-1", "tc_15" = "BDA-1.5", "tc_2" = "BDA-2",
+             "tc_3" = "BDA-3", "tc_ds" = "TC-DS", "tc_mid" = "TC-MID", "tc_us" = "TC-US")) +
+  scale_fill_viridis_d(option ="G", labels = c("tc_1" = "BDA-1", "tc_15" = "BDA-1.5", "tc_2" = "BDA-2",
+             "tc_3" = "BDA-3", "tc_ds" = "TC-DS", "tc_mid" = "TC-MID", "tc_us" = "TC-US")) + # color palette 
   theme_minimal() +
   labs(title = "Trail Creek",
        x = "Sampling Site",
-       y = "Mean LC Excess") +
+       y = "Mean lc-excess (\u2030)") +
   theme(plot.title = element_text(face = "bold", size = 14),
         axis.text.x = element_text(angle = 45, hjust = 1), # tilt labels 
-        legend.position = "none")
+        legend.position = "bottom")
 
 plot3
 
@@ -478,14 +543,16 @@ plot4 <- ggplot(delta_sum_cc, aes(x = site, y = mean_lc, fill = site)) +
   geom_col(color = "black", width = 0.7) +
   geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
                 width = 0.3, color = "black") +
-  scale_fill_viridis_d(option = "G") +
+  scale_fill_viridis_d(option = "G", labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" = "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6")) +
+    scale_x_discrete(labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" = "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6")) +
   theme_minimal() +
   labs(title = "Coal Creek",
        x = "Sampling Site",
-       y = "Mean LC Excess") +
+       y = "Mean lc-excess (\u2030)") +
   theme(plot.title = element_text(face = "bold", size = 14),
         axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "none")
+        legend.position = "bottom")
+plot4
 
 # averaging the lc-excess and including standard error
 delta_summary_it <- italian_creek |>
@@ -495,21 +562,22 @@ delta_summary_it <- italian_creek |>
     se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
     .groups = "drop"
   )
-plot4
+
 
 # creating a plot to show the mean lc-excess of each site (italian creek)
 plot5 <- ggplot(delta_summary_it, aes(x = site, y = mean_lc, fill = site)) +
   geom_col(color = "black", width = 0.7) +
   geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
                 width = 0.3, color = "black") +
-  scale_fill_viridis_d(option = "G") +
+  scale_fill_viridis_d(option = "G", labels = c("italian_1" = "IT-1", "italian_2" = "IT-2", "italian_3" = "IT-3", "italian_4" = "IT-4", "italian_5" = "IT-5")) +
+  scale_x_discrete(labels = c("italian_1" = "IT-1", "italian_2" = "IT-2", "italian_3" = "IT-3", "italian_4" = "IT-4", "italian_5" = "IT-5")) +
   theme_minimal() +
   labs(title = "Italian Creek",
        x = "Sampling Site",
-       y = "Mean LC Excess") +
+       y = "Mean lc-excess (\u2030)") +
   theme(plot.title = element_text(face = "bold", size = 14),
         axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "none")
+        legend.position = "bottom")
 
 plot5
 
