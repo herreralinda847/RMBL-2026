@@ -326,7 +326,7 @@ ggplot(trail_creek, aes(x = delta_o, y = delta_d, color = site)) +
     color = "Site"
   ) +
   theme_minimal() +
-   theme(plot.title = element_text(face = "bold", size = 14))
+   theme(plot.title = element_text(face = "bold", size = 14), legend.position = "none")
 
 ```
 

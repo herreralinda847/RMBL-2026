@@ -166,6 +166,10 @@ ggplot(data = trail_creek_isco,
     label.y = "top", # positions the labels vertically 
     vstep = 0.05, # spacing between the text lines so they do not overlap
     size = 3.5) +
+  scale_color_manual(
+    values = c("tc_isco" = "dodgerblue", "utc_isco" = "orangered2"),
+    labels = c( "tc_isco" = "Trail Creek", "utc_isco" = "Upper Trail Creek")
+  ) +
   
   labs(title = "Time-Series of Line-Conditioned Excess (lc-excess)",
        subtitle = "Values below 0 indicate potential evaporative enrichment",
@@ -189,40 +193,38 @@ Figure 1.1: Sampling Site and lc-excess (Trail Creek)
 #| message: false
 #| warning: false
 
-ggplot(data = trail_creek, aes(x = site, y = lc_excess, color = date, group = date)) + 
+plot1_1 <- ggplot(data = trail_creek, aes(x = site, y = lc_excess, color = factor(date), group = date)) + 
   # reference line at 0
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray", linewidth = 0.8) + 
-  
   # adds a linear regression line for each date group
   geom_smooth(method = "lm", se = TRUE, linewidth = 1, alpha = 0.15) +
-  
   # adds the equation and R-squared text automatically for each date line
   stat_poly_eq(
     aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "*\", \"*")),
     formula = y ~ x,
     parse = TRUE,
     label.x = "left", # positions the labels horizontally
-    label.y = "top", # positions the labels vertically 
+    label.y = "bottom", # positions the labels vertically 
     vstep = 0.05, # spacing between the text lines so they do not overlap
-    size = 3.5) +
-  
+    size = 3.0) +
   # points for each site's value
-  geom_point(size = 2.5, alpha = 0.8) + 
-  
+  geom_point(size = 2.0, alpha = 0.8) + 
   labs(
-    title = "Linear Trends of lc-excess across Sites by Date",
-    subtitle = "Trends track changes from upstream to downstream factors",
+    title = "Trail Creek",
     x = "Sampling Site (Upstream to Downstream)",
     y = "lc-excess (\u2030)",
     color = "Sampling Date"
   ) + 
+  scale_color_manual(values = c("2026-06-24" = "royalblue3", "2026-06-30" = "royalblue1", "2026-07-15" = "#809BEB")) +
+  scale_x_discrete(labels = c("tc_us" = "TC-US", "tc_mid" = "TC-MID", "tc_ds" = "TC-DS", "tc_1" = "BDA-1", "tc_15" = "BDA-1.5", "tc_2" = "BDA-2", "tc_3" = "BDA-3")) +
   theme_bw() + 
   theme(
     plot.title = element_text(face = "bold", size = 14),
     panel.grid.minor = element_blank(), 
     axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "right"
+    legend.position = "bottom"
   )
+plot1_1
 
 ```
 
@@ -234,30 +236,22 @@ Figure 1.2: Sampling Site and lc-excess (Coal Creek)
 #| message: false
 #| warning: false
 
-ggplot(data = coal_creek, aes(x = site, y = lc_excess, color = date, group = date)) + 
-  # reference line at 0
+plot1_2 <- ggplot(data = coal_creek, aes(x = site, y = lc_excess, color = factor(date), group = date)) + 
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray", linewidth = 0.8) + 
-  
-  # adds a linear regression line for each date group
-  geom_smooth(method = "lm", se = TRUE, linewidth = 1, alpha = 0.15) +
-  
-  # adds the equation and R-squared text automatically for each date line
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1, alpha = 0.15) +
   stat_poly_eq(
     aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "*\", \"*")),
     formula = y ~ x,
     parse = TRUE,
-    label.x = "left", # positions the labels horizontally
-    label.y = "top", # positions the labels vertically 
-    vstep = 0.05, # spacing between the text lines so they do not overlap
-    size = 3.5
-  ) +
-  
-  # points for each site's value
-  geom_point(size = 2.5, alpha = 0.5) + 
-  
+    label.x = "left",
+    label.y = "bottom",
+    vstep = 0.05,
+    size = 3.0) +
+  geom_point(size = 2.0, alpha = 0.8) + 
+  scale_color_manual(values = c("2026-06-23" = "royalblue3", "2026-07-07" = "royalblue1")) +
+  scale_x_discrete(labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" = "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6")) +
   labs(
-    title = "Linear Trends of lc-excess across Sites by Date",
-    subtitle = "Trends track changes from upstream to downstream factors",
+    title = "Coal Creek",
     x = "Sampling Site (Upstream to Downstream)",
     y = "lc-excess (\u2030)",
     color = "Sampling Date"
@@ -267,8 +261,10 @@ ggplot(data = coal_creek, aes(x = site, y = lc_excess, color = date, group = dat
     plot.title = element_text(face = "bold", size = 14),
     panel.grid.minor = element_blank(), 
     axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "right"
+    legend.position = "bottom"
   )
+plot1_2
+
 
 ```
 
@@ -280,13 +276,11 @@ Figure 1.3: Sampling Site and lc-excess (Italian Creek)
 #| message: false
 #| warning: false
 
-ggplot(data = italian_creek, aes(x = site, y = lc_excess, color = date, group = date)) + 
+plot1_3 <- ggplot(data = italian_creek, aes(x = site, y = lc_excess, color = factor(date), group = date)) + 
   # reference line at 0
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray", linewidth = 0.8) + 
-  
   # adds a linear regression line for each date group
   geom_smooth(method = "lm", se = TRUE, linewidth = 1, alpha = 0.15) +
-  
   # adds the equation and R-squared text automatically for each date line
   stat_poly_eq(
     aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "*\", \"*")),
@@ -295,15 +289,14 @@ ggplot(data = italian_creek, aes(x = site, y = lc_excess, color = date, group = 
     label.x = "left", # positions the labels horizontally
     label.y = "bottom", # positions the labels vertically 
     vstep = 0.05, # spacing between the text lines so they do not overlap
-    size = 3.5
-  ) +
-  
+    size = 3.0) +
+    ylim(-1,4) +
   # points for each site's value
   geom_point(size = 2.5, alpha = 0.5) + 
-  
+  scale_color_manual(values = c("2026-07-01" = "royalblue3", "2026-07-16" = "royalblue1", "2026-07-23" = "#809BEB")) +
+  scale_x_discrete(labels = c("italian_1" = "IT-1", "italian_2" = "IT-2", "italian_3" = "IT-3", "italian_4" = "IT-4", "italian_5" = "IT-5")) +
   labs(
-    title = "Linear Trends of lc-excess across Sites by Date",
-    subtitle = "Trends track changes from upstream to downstream factors",
+    title = "Italian Creek",
     x = "Sampling Site (Upstream to Downstream)",
     y = "lc-excess (\u2030)",
     color = "Sampling Date"
@@ -313,16 +306,23 @@ ggplot(data = italian_creek, aes(x = site, y = lc_excess, color = date, group = 
     plot.title = element_text(face = "bold", size = 14),
     panel.grid.minor = element_blank(), 
     axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "right"
+    legend.position = "bottom"
   )
+plot1_3
+
 
 ```
 
+```{r}
+#| label: dual-isotope-patchwork
+#| message: false
+#| warning: false
+#| fig-height: 7
+#| fig-width: 15
 
+plot1_1 + plot1_2 + plot1_3
 
-
-
-
+```
 
 
 
@@ -362,8 +362,8 @@ plot1 <- ggplot(gradient_lc_clean) +
     breaks = distances$dist_m,
     labels = distances$site) +
   labs(title = "Trail Creek: Spatial variations in Δlc-excess/Δx across sampling dates",
-       x = "Normalized stream distance (m)",
-       y = expression(paste(Delta, "lc-excess / ", Delta, "x (ppb/km)"))) +
+       x = "Normalized stream distance (km)",
+       y = expression(paste(Delta, "lc-excess / ", Delta, "x ((\u2030)/km)"))) +
   theme_bw(base_size = 11) +
   theme(plot.title = element_text(face = "bold", size = 14),
         panel.grid.minor = element_blank(),
@@ -392,6 +392,7 @@ gradient_cc_clean <- gradient_cc |>
   mutate(site = factor(site, levels = distances_cc$site)) |>
   filter(!is.na(gradient))
 
+plot1
 
 # Gradient plot
 plot2 <- ggplot(gradient_cc_clean) +
@@ -404,14 +405,16 @@ plot2 <- ggplot(gradient_cc_clean) +
     labels = distances_cc$site) +
   labs(
     title = "Coal Creek: Spatial variations in Δlc-excess/Δx across sampling dates",
-    x = "Normalized stream distance (m)",
-    y = expression(paste(Delta, "lc-excess / ", Delta, "x (ppb/km)"))) +
+    x = "Normalized stream distance (km)",
+    y = expression(paste(Delta, "lc-excess / ", Delta, "x ((\u2030)/km)"))) +
   theme_bw(base_size = 11) +
   theme(
     plot.title = element_text(face = "bold", size = 14),
     panel.grid.minor = element_blank(),
     strip.text = element_text(face = "bold"),
     axis.text.x = element_text(angle = 45, hjust = 1))
+
+plot2
 
 ```
 
@@ -492,7 +495,7 @@ delta_summary_it <- italian_creek |>
     se_lc = sd(lc_excess, na.rm = TRUE) / sqrt(n()),
     .groups = "drop"
   )
-
+plot4
 
 # creating a plot to show the mean lc-excess of each site (italian creek)
 plot5 <- ggplot(delta_summary_it, aes(x = site, y = mean_lc, fill = site)) +
@@ -508,6 +511,7 @@ plot5 <- ggplot(delta_summary_it, aes(x = site, y = mean_lc, fill = site)) +
         axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none")
 
+plot5
 
 ```
 
@@ -528,36 +532,90 @@ combined_stacked_2 # print the graph
 Figure 4:
 
 ```{r}
-#| label: Figure 4
+#| label: Figure 4-dual-isotope-plot
 #| message: false
 #| warning: false
 #| fig-height: 5
 #| fig-width: 7
 
-# Add Global Meteoric Water Line (GMWL: y = 8x + 10)
-gmwl_slope <- 8.00
-gmwl_intercept <- 10.00 
+# Coal Creek LMWL calculated from OPIC y = 7.93 x + 8.97
+ggplot(coal_creek, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(alpha = 0.7, size = 2) +
+ geom_abline(intercept = 8.97, slope = 7.93, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+  labs(
+    title = "Dual-Isotope Plot: \u03b418O vs \u03b4D",
+    subtitle = "Dashed line = LMWL",
+    x = expression(paste(delta^{18}, "O (\u2030)")),
+    y = expression(paste(delta, "D (\u2030)")),
+    color = "Site"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14), legend.position = "none")
 
-plot6 <- ggplot(compiled_isotope, aes(x = delta_o, y = delta_d, color = site)) +
-  geom_point(size = 2.5, alpha = 0.7) +
-  geom_abline(slope = gmwl_slope, intercept = gmwl_intercept, 
-              linetype = "dashed", color = "black", linewidth = 0.8) +
-  facet_wrap(~location, labeller = labeller(location = c(tc = "Trail Creek",
-                                                         utc = "Upstream Trail Creek",
-                                                         cc = "Coal Creek",
-                                                         it = "Italian Creek"))) +
-  labs(title = "Dual Isotope Plot: \u03b418O vs \u03b4D",
-       subtitle = "Dashed line = Global Meteoric Water Line",
-       x = expression(paste(delta^18, "O (\u2030)")),
-       y = expression(paste(delta, "D (\u2030)")),
-       color = "Reach") +
-  theme_bw() +
-  theme(plot.title = element_text(face = "bold", size = 14),
-        legend.position = "none")
+# Italian Creek LMWL calculated from OPIC y = 7.89 x + 8.67 
 
-plot6
+ggplot(italian_creek, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(alpha = 0.7, size = 2) +
+  geom_abline(intercept = 8.67, slope = 7.89, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+  labs(
+    title = "Dual-Isotope Plot: \u03b418O vs \u03b4D",
+    subtitle = "Local Mean Water Line (LMWL: y = 7.89 x + 8.67)",
+    x = expression(paste(delta^{18}, "O (\u2030)")),
+    y = expression(paste(delta, "D (\u2030)")),
+    color = "Site"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14), legend.position = "none")
+
+# Trail Creek River Reach LMWL calculated from OPIC y = 7.94 x + 9.37
+ggplot(trail_creek, aes(x = delta_o, y = delta_d, color = site)) +
+  geom_point(alpha = 0.7, size = 2) +
+  geom_abline(intercept = 9.37, slope = 7.94, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+  labs(
+    title = "Dual-Isotope Plot with LMWL",
+    subtitle = "Local Mean Water Line (LMWL: y = 7.94 x + 9.37)",
+    x = expression(paste(delta^{18}, "O (‰)")),
+    y = expression(paste(delta, "D (‰)")),
+    color = "Site"
+  ) +
+  theme_minimal() +
+   theme(plot.title = element_text(face = "bold", size = 14), legend.position = "none")
+
+# TC ISCO LMWL calculated from OPIC y = 7.94 x + 9.37
+ggplot(tc_isco, aes(x = delta_o, y = delta_d, color = date)) +
+  geom_point(alpha = 0.7, size = 2) +
+  geom_abline(intercept = 9.37, slope = 7.94, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+  labs(
+    title = "Dual-Isotope Plot with LMWL",
+    subtitle = "Local Mean Water Line (LMWL: y = 7.94 x + 9.37)",
+    x = expression(paste(delta^{18}, "O (‰)")),
+    y = expression(paste(delta, "D (‰)")),
+    color = "Site"
+  ) +
+  theme_minimal() +
+   theme(plot.title = element_text(face = "bold", size = 14), legend.position = "none")
+
+
+
+# UTC ISCO LMWL calculated from OPIC y = 7.94 x + 9.37
+ggplot(utc_isco, aes(x = delta_o, y = delta_d, color = date)) +
+  geom_point(alpha = 0.7, size = 2) +
+  geom_abline(intercept = 9.37, slope = 7.94, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+  labs(
+    title = "Dual-Isotope Plot with LMWL",
+    subtitle = "Local Mean Water Line (LMWL: y = 7.94 x + 9.37)",
+    x = expression(paste(delta^{18}, "O (‰)")),
+    y = expression(paste(delta, "D (‰)")),
+    color = "Site"
+  ) +
+  theme_minimal() +
+   theme(plot.title = element_text(face = "bold", size = 14), legend.position = "none")
+
 
 ```
+
+
+
 
 
 Discharge 
