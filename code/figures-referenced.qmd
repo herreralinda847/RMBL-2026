@@ -23,6 +23,8 @@ library(ggplot2)
 library(patchwork)
 library(ggpmisc) 
 library(ggsignif)
+library(dplyr)
+
 ```
 
 ## Data 
@@ -132,12 +134,14 @@ isco_data <- merge(
   by.y = c("location", "date") # matching columns in compiled_isotope
 )
 
-
 discharge_tc_isco <- read_csv(here("data", "discharge_tc_isco.csv"))
 
 discharge_utc_isco <- read_csv(here("data", "discharge_utc_isco.csv"))
 
 discharge_isco <- read_csv(here("data", "isco_discharge_lc.csv"))
+
+hydrograph <- read_csv(here("data", "hydrograph.csv")) |> 
+  mutate(date = mdy(date)) # telling r the date format
   
 ```
 
@@ -149,6 +153,8 @@ Figure 1: Time-Series of Line-Conditioned Excess (lc-excess) of ISCO's
 #| label: figure-1
 #| message: false
 #| warning: false
+#| fig-height: 8
+#| fig-width: 6
 
 ggplot(data = trail_creek_isco, 
        aes(x = date, 
@@ -159,30 +165,19 @@ ggplot(data = trail_creek_isco,
              linetype = "dashed", 
              color = "gray50", 
              size = 0.8) +
-  geom_point(size = 2.5, 
+  geom_point(size = 1.5, 
              alpha = 0.8) +
-  geom_smooth(method = "lm", se = TRUE, alpha = 0.15, linewidth = 1) +
-  
-  # adds the equation and R-squared text automatically for each date line
-  stat_poly_eq(
-    aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "*\", \"*")),
-    formula = y ~ x,
-    parse = TRUE,
-    label.x = "left", # positions the labels horizontally
-    label.y = "top", # positions the labels vertically 
-    vstep = 0.05, # spacing between the text lines so they do not overlap
-    size = 3.5) +
+  geom_line(linewidth = 1.0) +
   scale_color_manual(
     values = c("tc_isco" = "dodgerblue", "utc_isco" = "orangered2"),
-    labels = c( "tc_isco" = "Trail Creek", "utc_isco" = "Upper Trail Creek")
+    labels = c("tc_isco" = "Trail Creek", "utc_isco" = "Upper Trail Creek")
   ) +
-  
-  labs(title = "Time-Series of Line-Conditioned Excess (lc-excess)",
+  labs(title = "Trail Creek ISCO: Line-Conditioned Excess Over Time",
        subtitle = "Values below 0 indicate potential evaporative enrichment",
        x = "Sampling Date",
        y = "lc-excess (\u2030)",
        color = "Site") +
-  ylim(-8,5) +
+  ylim(-6,0) +
   theme_bw() +
   theme(plot.title = element_text(face = "bold", size = 14),
         panel.grid.minor = element_blank(),
@@ -198,37 +193,54 @@ Figure 2: Sampling Site and lc-excess (Trail Creek)
 #| message: false
 #| warning: false
 
-plot2_1 <- ggplot(data = trail_creek, aes(x = site, y = lc_excess, color = factor(date), group = date)) + 
+
+# Standardize names to match your raw data (e.g., tc_us, tc_mid...)
+distances_tc <- tibble(
+  site = c("tc_us", "tc_mid", "tc_ds", "tc_1", "tc_15", "tc_2", "tc_3"),
+  dist_m = c(57.6, 333, 654, 1160, 1620, 2240, 3150)
+)
+
+# Add the physical distance column to your data frame
+trail_creek_mapped <- trail_creek |> 
+  left_join(distances_tc, by = "site")
+
+plot2_1 <- ggplot(data = trail_creek_mapped, aes(x = dist_m, y = lc_excess, color = factor(date), group = date)) + 
   # reference line at 0
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray", linewidth = 0.8) + 
-  # adds a linear regression line for each date group
+  # linear regression lines using real  distances
   geom_smooth(method = "lm", se = TRUE, linewidth = 1, alpha = 0.15) +
-  # adds the equation and R-squared text automatically for each date line
+  # Equations will now display correct physical slopes (per meter)
   stat_poly_eq(
     aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "*\", \"*")),
     formula = y ~ x,
     parse = TRUE,
-    label.x = "left", # positions the labels horizontally
-    label.y = "bottom", # positions the labels vertically 
-    vstep = 0.05, # spacing between the text lines so they do not overlap
+    label.x = "left", 
+    label.y = "bottom", 
+    vstep = 0.05, 
     size = 3.0) +
-  # points for each site's value
+  # Points plotted at exact stream distances
   geom_point(size = 2.0, alpha = 0.8) + 
   labs(
     title = "Trail Creek",
-    x = "Sampling Site (Upstream to Downstream)",
+    x = "Sampling Sites",
     y = "lc-excess (\u2030)",
     color = "Sampling Date"
   ) + 
   scale_color_manual(values = c("2026-06-24" = "royalblue4", "2026-06-30" = "royalblue1", "2026-07-15" = "#809BEB")) +
-  scale_x_discrete(labels = c("tc_us" = "TC-US", "tc_mid" = "TC-MID", "tc_ds" = "TC-DS", "tc_1" = "BDA-1", "tc_15" = "BDA-1.5", "tc_2" = "BDA-2", "tc_3" = "BDA-3")) +
+  # Continuous scale maps site labels directly to their physical meter marks
+  scale_x_continuous(
+    breaks = c(57.6, 333, 654, 1160, 1620, 2240, 3150),
+    labels = c("TC-US", "TC-MID", "TC-DS", "BDA-1", "BDA-1.5", "BDA-2", "BDA-3")
+  ) +
   theme_bw() + 
   theme(
     plot.title = element_text(face = "bold", size = 14),
     panel.grid.minor = element_blank(), 
     axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "bottom"
+    legend.position = "bottom",
+    legend.title = element_blank()
   )
+
 plot2_1
 
 ```
@@ -238,23 +250,38 @@ plot2_1
 #| message: false
 #| warning: false
 
-plot2_2 <- ggplot(data = coal_creek, aes(x = site, y = lc_excess, color = factor(date), group = date)) + 
+distances_cc_lm <- tibble(
+  site = c("coal_1", "coal_2", "coal_4", "coal_5", "coal_6"), 
+  dist_m = c(0, 1496, 2006, 2478, 2885)
+)
+
+# 2. Join the continuous distance column into your dataset
+coal_creek_mapped <- coal_creek |> 
+  left_join(distances_cc_lm, by = "site")
+
+# 3. Plot using continuous physical distance on the x-axis
+plot2_2 <- ggplot(data = coal_creek_mapped, aes(x = dist_m, y = lc_excess, color = factor(date), group = date)) + 
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray", linewidth = 0.8) + 
-  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1, alpha = 0.15) +
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1, alpha = 0.15) + 
   stat_poly_eq(
     aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "*\", \"*")),
-    formula = y ~ x,
-    parse = TRUE,
-    label.x = "left",
-    label.y = "bottom",
-    vstep = 0.05,
-    size = 3.0) +
+    formula = y ~ x, 
+    parse = TRUE, 
+    label.x = "left", 
+    label.y = "bottom", 
+    vstep = 0.05, 
+    size = 3.0
+  ) + 
   geom_point(size = 2.0, alpha = 0.8) + 
-  scale_color_manual(values = c("2026-06-23" = "royalblue4", "2026-07-07" = "royalblue1")) +
-  scale_x_discrete(labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" = "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6")) +
+  scale_color_manual(values = c("2026-06-23" = "royalblue4", "2026-07-07" = "royalblue1")) + 
+  # Map labels to their precise coordinate positions
+  scale_x_continuous(
+    breaks = c(0, 1496, 2006, 2478, 2885),
+    labels = c("CC-1", "CC-2", "CC-4", "CC-5", "CC-6")
+  ) + 
   labs(
     title = "Coal Creek",
-    x = "Sampling Site (Upstream to Downstream)",
+    x = "Sampling Sites",
     y = "lc-excess (\u2030)",
     color = "Sampling Date"
   ) + 
@@ -263,11 +290,11 @@ plot2_2 <- ggplot(data = coal_creek, aes(x = site, y = lc_excess, color = factor
     plot.title = element_text(face = "bold", size = 14),
     panel.grid.minor = element_blank(), 
     axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "bottom"
+    legend.position = "bottom",
+    legend.title = element_blank()
   )
+
 plot2_2
-
-
 ```
 
 ```{r}
@@ -275,28 +302,37 @@ plot2_2
 #| message: false
 #| warning: false
 
-plot2_3 <- ggplot(data = italian_creek, aes(x = site, y = lc_excess, color = factor(date), group = date)) + 
-  # reference line at 0
+distances_it_lm <- tibble(
+  site = c("italian_1", "italian_2", "italian_3", "italian_4", "italian_5"), 
+  dist_m = c(0, 793.37, 1665.83, 2385.13, 2963.62)
+)
+
+italian_creek_mapped <- italian_creek |> 
+  left_join(distances_it_lm, by = "site")
+
+plot2_3 <- ggplot(data = italian_creek_mapped, aes(x = dist_m, y = lc_excess, color = factor(date), group = date)) + 
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray", linewidth = 0.8) + 
-  # adds a linear regression line for each date group
-  geom_smooth(method = "lm", se = TRUE, linewidth = 1, alpha = 0.15) +
-  # adds the equation and R-squared text automatically for each date line
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, linewidth = 1, alpha = 0.15) + 
   stat_poly_eq(
     aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "*\", \"*")),
-    formula = y ~ x,
-    parse = TRUE,
-    label.x = "left", # positions the labels horizontally
-    label.y = "bottom", # positions the labels vertically 
-    vstep = 0.05, # spacing between the text lines so they do not overlap
-    size = 3.0) +
-    ylim(-1,4) +
-  # points for each site's value
+    formula = y ~ x, 
+    parse = TRUE, 
+    label.x = "left", 
+    label.y = "bottom", 
+    vstep = 0.05, 
+    size = 3.0
+  ) + 
+  ylim(-1, 4) + 
   geom_point(size = 2.5, alpha = 0.5) + 
-  scale_color_manual(values = c("2026-07-01" = "royalblue4", "2026-07-16" = "royalblue2", "2026-07-23" = "#809BEB")) +
-  scale_x_discrete(labels = c("italian_1" = "IT-1", "italian_2" = "IT-2", "italian_3" = "IT-3", "italian_4" = "IT-4", "italian_5" = "IT-5")) +
+  scale_color_manual(values = c("2026-07-01" = "royalblue4", "2026-07-16" = "royalblue2", "2026-07-23" = "#809BEB")) + 
+  # Map labels to their precise coordinate positions
+  scale_x_continuous(
+    breaks = c(0, 793.37, 1665.83, 2385.13, 2963.62),
+    labels = c("IT-1", "IT-2", "IT-3", "IT-4", "IT-5")
+  ) + 
   labs(
-    title = "Italian Creek",
-    x = "Sampling Site (Upstream to Downstream)",
+    title = "Italian Creek (control)",
+    x = "Sampling Sites",
     y = "lc-excess (\u2030)",
     color = "Sampling Date"
   ) + 
@@ -305,8 +341,10 @@ plot2_3 <- ggplot(data = italian_creek, aes(x = site, y = lc_excess, color = fac
     plot.title = element_text(face = "bold", size = 14),
     panel.grid.minor = element_blank(), 
     axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "bottom"
+    legend.position = "bottom",
+    legend.title = element_blank()
   )
+
 plot2_3
 
 
@@ -319,7 +357,7 @@ plot2_3
 #| fig-height: 7
 #| fig-width: 15
 
-figure_2 <- plot2_1 + plot2_2 + plot2_3
+figure_2 <-  plot2_3 + plot2_1 + plot2_2 
 
 figure_2
 
@@ -357,8 +395,9 @@ gradient_tc_clean <- gradient_tc |>
 # Gradient plot
 plot3_1 <- ggplot(gradient_tc_clean) +
   geom_rect(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = gradient),
-            fill = "royalblue2", color = "black", linewidth = 0.3) +
-  geom_hline(yintercept = 0, color = "royalblue2", linewidth = 0.4) +
+            fill = "royalblue4", color = "black", linewidth = 0.3) +
+  geom_hline(yintercept = 0, color = "royalblue4", linewidth = 0.4) +
+  ylim(-4,4) +
   facet_wrap(~ date, nrow = 1) +
   scale_x_continuous(
     breaks = distances$dist_m,
@@ -370,7 +409,7 @@ plot3_1 <- ggplot(gradient_tc_clean) +
   theme(plot.title = element_text(face = "bold", size = 14),
         panel.grid.minor = element_blank(),
         strip.text = element_text(face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1))
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
 plot3_1
 
 
@@ -399,8 +438,9 @@ gradient_cc_clean <- gradient_cc |>
 # Gradient plot
 plot3_2 <- ggplot(gradient_cc_clean) +
   geom_rect(aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = gradient),
-            fill = "royalblue2", color = "black", linewidth = 0.3) +
-  geom_hline(yintercept = 0, color = "royalblue2", linewidth = 0.4) +
+            fill = "royalblue4", color = "black", linewidth = 0.3) +
+  geom_hline(yintercept = 0, color = "royalblue4", linewidth = 0.4) +
+  ylim(-4,4) +
   facet_wrap(~date, nrow = 1) +
   scale_x_continuous(
     breaks = distances_cc$dist_m,
@@ -414,7 +454,7 @@ plot3_2 <- ggplot(gradient_cc_clean) +
     plot.title = element_text(face = "bold", size = 14),
     panel.grid.minor = element_blank(),
     strip.text = element_text(face = "bold"),
-    axis.text.x = element_text(angle = 45, hjust = 1))
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
 
 plot3_2
 
@@ -453,16 +493,17 @@ left_join(distances_it |> select(site, xmin, xmax),
 plot3_3 <- ggplot(gradient_it_clean) + 
   geom_rect(
     aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = gradient), 
-    fill = "royalblue2", color = "black", linewidth = 0.3
+    fill = "royalblue4", color = "black", linewidth = 0.3
   ) + 
-  geom_hline(yintercept = 0, color = "royalblue2", linewidth = 0.4) + 
+  geom_hline(yintercept = 0, color = "royalblue4", linewidth = 0.4) + 
   facet_wrap(~ date, nrow = 1) + 
   scale_x_continuous(
     breaks = distances_it$dist_m, 
     labels = distances_it$site
   ) + 
+  ylim(-4,4) +
   labs(
-    title = "Italian Creek", 
+    title = "Italian Creek (control)", 
     x = "Normalized stream distance (m)", 
     y = expression(paste(Delta, "lc-excess / ", Delta, "x ((\u2030)/km)"))
   ) + 
@@ -471,7 +512,7 @@ plot3_3 <- ggplot(gradient_it_clean) +
     plot.title = element_text(face = "bold", size = 14), 
     panel.grid.minor = element_blank(), 
     strip.text = element_text(face = "bold"), 
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8)
   )
 
 plot3_3
@@ -486,7 +527,7 @@ plot3_3
 #| fig-height: 6
 #| fig-width: 17
 
-figure_3 <- plot3_1 + plot3_2 + plot3_3
+figure_3 <- plot3_1 + plot3_2 
 
 figure_3 # print the graph 
 ```
@@ -505,8 +546,8 @@ delta_summary <- trail_creek |>
     .groups = "drop")
 
 # creating a plot to show the mean lc-excess of each site (coal creek)
-plot4_1 <- ggplot(delta_summary, aes(x = site, y = mean_lc, fill = site)) +
-  geom_col(color = "black", width = 0.7) +
+plot4_1 <- ggplot(delta_summary, aes(x = site, y = mean_lc)) +
+  geom_col(fill = "royalblue4", color = "black", width = 0.7) +
   geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
                 width = 0.3,
                 color = "black") +
@@ -514,15 +555,14 @@ plot4_1 <- ggplot(delta_summary, aes(x = site, y = mean_lc, fill = site)) +
                               "tc_2" = "BDA-2", "tc_3" = "BDA-3", 
                               "tc_ds" = "TC-DS", "tc_mid" = "TC-MID", 
                               "tc_us" = "TC-US")) +
-  scale_fill_viridis_d(option ="G", labels = c("tc_1" = "BDA-1", "tc_15" = "BDA-1.5", "tc_2" = "BDA-2",
-             "tc_3" = "BDA-3", "tc_ds" = "TC-DS", "tc_mid" = "TC-MID", "tc_us" = "TC-US")) +
+  ylim(-4.8, 3) +
   theme_minimal() +
   labs(title = "Trail Creek",
        x = "Sampling Site",
        y = "Mean lc-excess (\u2030)") +
   theme(plot.title = element_text(face = "bold", size = 14),
-        axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position = "bottom") 
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") # Safely removes the now-empty legend
 
 plot4_1
 
@@ -536,18 +576,23 @@ delta_sum_cc <- coal_creek |>
 
 # creating a plot to show the mean lc-excess of each site (coal creek)
 plot4_2 <- ggplot(delta_sum_cc, aes(x = site, y = mean_lc, fill = site)) + 
-  geom_col(color = "black", width = 0.7) + 
+  geom_col(fill = "royalblue4", color = "black", width = 0.7) +
   geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc), 
                 width = 0.3, color = "black") + 
-  scale_fill_viridis_d(option = "G", labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" = "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6")) + 
   scale_x_discrete(labels = c("coal_1" = "CC-1", "coal_2" = "CC-2", "coal_3" = "CC-3", "coal_4" = "CC-4", "coal_5" = "CC-5", "coal_6" = "CC-6")) + 
+   ylim(-4.8, 3) +
   theme_minimal() + 
   labs(title = "Coal Creek", 
        x = "Sampling Site", 
-       y = "Mean lc-excess (\u2030)") + 
-  theme(plot.title = element_text(face = "bold", size = 14), 
-        axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.position = "bottom")
+       y = "Mean lc-excess (\u2030)") +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom",
+        legend.key.size = unit(0.4, "cm"),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        legend.spacing.x = unit(0.2, "cm"))
+
 
 plot4_2
 
@@ -561,18 +606,22 @@ delta_summary_it <- italian_creek |>
 
 # creating a plot to show the mean lc-excess of each site (italian creek)
 plot4_3 <- ggplot(delta_summary_it, aes(x = site, y = mean_lc, fill = site)) +
-  geom_col(color = "black", width = 0.7) +
+  geom_col(fill = "royalblue4", color = "black", width = 0.7) +
   geom_errorbar(aes(ymin = mean_lc - se_lc, ymax = mean_lc + se_lc),
                 width = 0.3, color = "black") + 
-  scale_fill_viridis_d(option = "G", labels = c("italian_1" = "IT-1", "italian_2" = "IT-2", "italian_3" = "IT-3", "italian_4" = "IT-4", "italian_5" = "IT-5")) +
   scale_x_discrete(labels = c("italian_1" = "IT-1", "italian_2" = "IT-2", "italian_3" = "IT-3", "italian_4" = "IT-4", "italian_5" = "IT-5")) +
+   ylim(-4.8, 3) +
   theme_minimal() +
-  labs(title = "Italian Creek",
+  labs(title = "Italian Creek (control)",
        x = "Sampling Site",
        y = "Mean lc-excess (\u2030)") +
   theme(plot.title = element_text(face = "bold", size = 14),
         axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "bottom")
+        legend.position = "bottom",
+        legend.key.size = unit(0.4, "cm"),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        legend.spacing.x = unit(0.2, "cm"))
 
 plot4_3
 
@@ -587,7 +636,7 @@ plot4_3
 #| fig-width: 15
 
 
-figure_4 <- plot4_1 + plot4_2 + plot4_3
+figure_4 <- plot4_3 + plot4_1 + plot4_2
 
 figure_4 # print the graph 
 ```
@@ -602,15 +651,15 @@ figure_4 # print the graph
 #| fig-width: 7
 
 # Coal Creek LMWL calculated from OPIC y = 7.93 x + 8.97
-plot5_1 <- ggplot(coal_creek, aes(x = delta_o, y = delta_d, color = site)) +
-  geom_point(alpha = 0.7, size = 2) +
- geom_abline(intercept = 8.97, slope = 7.93, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
+plot5_1 <- ggplot(coal_creek, aes(x = delta_o, y = delta_d)) +
+  geom_point(alpha = 0.7, size = 2, color = "royalblue3") +
+  geom_abline(intercept = 8.97, slope = 7.93, linetype = "dashed", color = "darkgray",
+              linewidth = 0.8) +
   labs(
-    title = "Dual-Isotope Plot: \u03b418O vs \u03b4D",
-    subtitle = "Dashed line = LMWL",
+    title = "Coal Creek",
+    subtitle = "LMWL: y = 7.93 x + 8.97",
     x = expression(paste(delta^{18}, "O (\u2030)")),
-    y = expression(paste(delta, "D (\u2030)")),
-    color = "Site"
+    y = expression(paste(delta, "D (\u2030)"))
   ) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold", size = 14), legend.position = "none")
@@ -618,36 +667,34 @@ plot5_1
 
 # Italian Creek LMWL calculated from OPIC y = 7.89 x + 8.67 
 
-plot5_2 <- ggplot(italian_creek, aes(x = delta_o, y = delta_d, color = site)) +
-  geom_point(alpha = 0.7, size = 2) +
+plot5_2 <- ggplot(italian_creek, aes(x = delta_o, y = delta_d)) +
+  geom_point(alpha = 0.7, size = 2, color = "royalblue2") +
   geom_abline(intercept = 8.67, slope = 7.89, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
   labs(
-    title = "Dual-Isotope Plot: \u03b418O vs \u03b4D",
-    subtitle = "Local Mean Water Line (LMWL: y = 7.89 x + 8.67)",
+    title = "Italian Creek",
+    subtitle = "LMWL: y = 7.89 x + 8.67",
     x = expression(paste(delta^{18}, "O (\u2030)")),
-    y = expression(paste(delta, "D (\u2030)")),
-    color = "Site"
+    y = expression(paste(delta, "D (\u2030)"))
   ) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold", size = 14), legend.position = "none")
 plot5_2
 
 # Trail Creek River Reach LMWL calculated from OPIC y = 7.94 x + 9.37
-plot5_3 <- ggplot(trail_creek, aes(x = delta_o, y = delta_d, color = site)) +
-  geom_point(alpha = 0.7, size = 2) +
+plot5_3 <- ggplot(trail_creek, aes(x = delta_o, y = delta_d)) +
+  geom_point(alpha = 0.7, size = 2, color = "royalblue4") +
   geom_abline(intercept = 9.37, slope = 7.94, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
   labs(
-    title = "Dual-Isotope Plot with LMWL",
-    subtitle = "Local Mean Water Line (LMWL: y = 7.94 x + 9.37)",
+    title = "Trail Creek",
+    subtitle = "LMWL: y = 7.94 x + 9.37",
     x = expression(paste(delta^{18}, "O (‰)")),
     y = expression(paste(delta, "D (‰)")),
-    color = "Site"
   ) +
   theme_minimal() +
    theme(plot.title = element_text(face = "bold", size = 14), legend.position = "none")
 plot5_3
 
-figure_5.0 <- plot5_1 + plot5_2 + plot5_3
+figure_5.0 <- plot5_3 + plot5_1 + plot5_2 
 figure_5.0
 
 ```
@@ -665,28 +712,26 @@ plot5_4 <- ggplot(tc_isco, aes(x = delta_o, y = delta_d, color = date)) +
   geom_point(alpha = 0.7, size = 2) +
   geom_abline(intercept = 9.37, slope = 7.94, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
   labs(
-    title = "Dual-Isotope Plot with LMWL",
-    subtitle = "Local Mean Water Line (LMWL: y = 7.94 x + 9.37)",
+    title = "Trail Creek ISCO",
     x = expression(paste(delta^{18}, "O (‰)")),
     y = expression(paste(delta, "D (‰)")),
     color = "Site"
   ) +
   theme_minimal() +
-   theme(plot.title = element_text(face = "bold", size = 14), legend.position = "none")
+   theme(plot.title = element_text(face = "bold", size = 14), legend.position = "bottom")
 
 # UTC ISCO LMWL calculated from OPIC y = 7.94 x + 9.37
 plot5_5 <- ggplot(utc_isco, aes(x = delta_o, y = delta_d, color = date)) +
   geom_point(alpha = 0.7, size = 2) +
   geom_abline(intercept = 9.37, slope = 7.94, linetype = "dashed", color = "darkgray", linewidth = 0.8) +
   labs(
-    title = "Dual-Isotope Plot with LMWL",
-    subtitle = "Local Mean Water Line (LMWL: y = 7.94 x + 9.37)",
+    title = "Upstream Trail Creek ISCO",
     x = expression(paste(delta^{18}, "O (‰)")),
     y = expression(paste(delta, "D (‰)")),
     color = "Site"
   ) +
   theme_minimal() +
-   theme(plot.title = element_text(face = "bold", size = 14), legend.position = "none")
+   theme(plot.title = element_text(face = "bold", size = 14), legend.position = "bottom")
 plot5_5
 
 figure_5.1 <- plot5_4 + plot5_5
@@ -714,9 +759,9 @@ tc_discharge <- ggplot(discharge_tc_isco, aes(x = discharge, y = lc_excess)) +
     use_label(c("eq", "R2", "P")),
     formula = y ~ x,
     label.x = "left", label.y = "top",
-    size = 3.5
+    size = 4.5
   ) +
-  labs(title = "TC-ISCO: Discharge vs. lc-excess",
+  labs(title = "Trail Creek (ISCO): Discharge vs. lc-excess",
        x = expression(paste("Discharge (cfs)")),
        y = "lc-excess (\u2030)") +
   theme_bw() +
@@ -745,9 +790,9 @@ utc_discharge <- ggplot(discharge_utc_isco, aes(x = discharge, y = lc_excess)) +
     use_label(c("eq", "R2", "P")),
     formula = y ~ x,
     label.x = "left", label.y = "top",
-    size = 3.5
+    size = 4.5
   ) +
-  labs(title = "UTC-ISCO: Discharge vs. lc-excess",
+  labs(title = "Upper Trail Creek (ISCO): Discharge vs. lc-excess",
        x = expression(paste("Discharge (cfs)")),
        y = "lc-excess (\u2030)") +
   theme_bw() +
@@ -764,9 +809,9 @@ utc_discharge
 #| fig-height: 9
 #| fig-width: 6
 
-combined_stacked_4 <- tc_discharge / utc_discharge
+discharge_figure <- tc_discharge + utc_discharge
 
-combined_stacked_4
+discharge_figure
 
 
 ```
@@ -788,9 +833,43 @@ ggplot(discharge_isco, aes(x = discharge,  y = lc_excess,
     labels = c( "tc" = "Trail Creek", "utc" = "Upper Trail Creek")
   ) +
   geom_smooth(method = "lm", formula = y ~ x, se = TRUE, color = "black") +
-  labs(title = "ISCO: Discharge vs. lc-excess",
+  labs(title = "Upper and Lower Trail Creek (ISCO): Discharge vs. lc-excess",
        x = expression(paste("Discharge (cfs)")),
        y = "lc-excess (\u2030)") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom") +
+  labs(color = "ISCO")
+
+
+```
+
+```{r}
+#| label: hydrograph-utc-tc
+#| message: false
+#| warning: false
+
+# hydrograph dataframe has the discharge, date, and site 
+# isco_data dataframe has the lc-excess, date, and site 
+# they have the same information types of date and site
+
+ggplot(data = hydrograph, 
+       aes(x = date, 
+           y = discharge, 
+           color = site, 
+           group = site)) +
+  geom_point(size = 0.8, 
+             alpha = 0.8) +
+  geom_line(linewidth = 1) +
+  scale_color_manual(
+    values = c("tc" = "dodgerblue", "utc" = "orangered2"),
+    labels = c( "tc" = "Trail Creek", "utc" = "Upper Trail Creek")
+  ) +
+  labs(title = "Discharge over Time",
+       x = "Date",
+       y = "Discharge (cfs)",
+       color = "Site") +
   theme_bw() +
   theme(plot.title = element_text(face = "bold", size = 14),
         panel.grid.minor = element_blank(),
@@ -798,5 +877,190 @@ ggplot(discharge_isco, aes(x = discharge,  y = lc_excess,
 
 
 ```
+
+
+```{r}
+#| label: hydrograph-with-overlay
+#| message: false
+#| warning: false
+
+
+slope <- 0.01333
+intercept <- 0.08
+
+ggplot() +
+  # hydrograph
+  geom_line(data = hydrograph, 
+            aes(x = date, y = discharge, color = site, group = site),
+            linewidth = 1) +
+  # isco_data overlay
+  geom_point(data = isco_data, 
+             aes(x = date, y = (lc_excess * slope) + intercept, color = site, group = site), 
+             shape = 20, # Solid point 
+             size = 2.5, # Large enough to see clearly
+             alpha = 0.7) +
+  scale_color_manual(
+    values = c("tc" = "dodgerblue", "utc" = "orangered2"),
+    labels = c("tc" = "Trail Creek", "utc" = "Upper Trail Creek")
+  ) +
+  scale_y_continuous(
+    name = "Discharge (cfs)",
+    limits = c(0, 0.16),
+    sec.axis = sec_axis(~ (. - intercept) / slope, name = "LC-Excess (\u2030)")
+  ) +
+  labs(title = "Discharge and LC-Excess over time",
+       subtitle = "Lines show discharge; points show lc-excess samples",
+       x = "Date",
+       color = "Site") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom") +
+  # cleans up the legend box so it displays both a line and a triangle together
+  guides(color = guide_legend(override.aes = list(shape = c(20, 20), linetype = c(1, 1))))
+
+
+
+```
+
+
+
+```{r}
+#| label: gradient-updated
+#| message: false
+#| warning: false
+
+# gradient plot for it 
+plot6_1 <- ggplot(gradient_it_clean) + 
+  geom_rect(
+    aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = gradient), 
+    fill = "royalblue4", color = "black", linewidth = 0.3
+  ) + 
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.4) + 
+  facet_wrap(~ date, nrow = 1) + 
+  scale_x_continuous(
+    breaks = distances_it$dist_m, 
+    labels = distances_it$site
+  ) + 
+  labs(
+    title = "Italian Creek", 
+    x = "Normalized stream distance (m)", 
+    y = expression(paste(Delta, "lc-excess / ", Delta, "x ((\u2030)/km)"))
+  ) + 
+  theme_bw(base_size = 11) + 
+  theme(
+    plot.title = element_text(face = "bold", size = 14), 
+    panel.grid.minor = element_blank(), 
+    strip.text = element_text(face = "bold"), 
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8)
+  )
+plot6_1
+
+
+gradient_cum_tc <- gradient_tc |> 
+  select(site, cumulative_dams,
+         `Δlc-excess/Δcum_dam_length_6-24`, `Δlc-excess/Δcum_dam_length_6-30`, `Δlc-excess/Δcum_dam_length_7-15`) |> 
+  pivot_longer(
+    cols = c(`Δlc-excess/Δcum_dam_length_6-24`, `Δlc-excess/Δcum_dam_length_6-30`, `Δlc-excess/Δcum_dam_length_7-15`),
+    names_to = "date",
+    values_to = "gradient"
+  ) |> 
+  mutate(
+    date = case_when(
+      date == "Δlc-excess/Δcum_dam_length_6-24" ~ "2026-06-24",
+      date == "Δlc-excess/Δcum_dam_length_6-30" ~ "2026-06-30",
+      date == "Δlc-excess/Δcum_dam_length_7-15" ~ "2026-07-15"
+    ),
+    gradient = as.numeric(gradient),
+    cumulative_dams = as.numeric(cumulative_dams),
+    site = factor(site, levels = c("TC-P3-US", "TC-P3-mid", "TC-P3-DS",
+                                    "TC-BDA1", "TC-BDA1.5", "TC-BDA2", "TC-BDA3"))
+  ) |> 
+  filter(!is.na(gradient))
+
+
+plot6_2 <- ggplot(gradient_cum_tc, aes(x = site, y = gradient)) + # Removed fill = site
+  geom_col(fill = "royalblue4", color = "black", width = 0.7) +   # Added fill = "royalblue4"
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.4) +
+  facet_wrap(~ date, nrow = 1) +
+  scale_x_discrete(labels = function(x) {
+    lookup <- setNames(gradient_cum_tc$cumulative_dams, gradient_cum_tc$site)
+    lookup[x]
+  }) +
+  labs(title = "Trail Creek", 
+    x = "Cumulative dam count",
+    y = expression(Delta * "lc-excess/" * Delta * "cumulative dam count (" * "\u2030" * ")/m")
+  ) +
+  theme_bw(base_size = 12) +
+  theme(plot.title = element_text(face = "bold", size = 14),
+    strip.text = element_text(face = "bold", size = 11),
+    strip.background = element_rect(fill = "gray85", color = NA),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "none" # Removes the now empty legend box
+  )
+
+plot6_2
+
+
+gradient_cum_cc <- gradient_cc |> 
+  select(site, cumulative_dams, `Δlc-excess/Δavg_dam_length_6-23 (ppb/m)`,
+         `Δlc-excess/Δcum_dam_length_7-7 (ppb/m)`) |> 
+  pivot_longer(
+    cols = c(`Δlc-excess/Δavg_dam_length_6-23 (ppb/m)`, `Δlc-excess/Δcum_dam_length_7-7 (ppb/m)`), 
+    names_to = "date", values_to = "gradient") |> 
+  mutate(date = case_when(date == "Δlc-excess/Δavg_dam_length_6-23 (ppb/m)" ~ "2026-06-23",
+                          date == "Δlc-excess/Δcum_dam_length_7-7 (ppb/m)"  ~ "2026-07-07"),
+         gradient = as.numeric(gradient), cumulative_dams = as.numeric(cumulative_dams), 
+         site = factor(site)) |> 
+  filter(!is.na(gradient))
+
+
+plot6_3 <- ggplot(gradient_cum_cc, aes(x = site, y = gradient)) + # Removed fill = site
+  geom_col(fill = "royalblue4", color = "black", width = 0.7) +   # Added fill = "royalblue4"
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.4) +
+  facet_wrap(~ date, nrow = 1) +
+  scale_x_discrete(labels = function(x) {
+    lookup <- setNames(gradient_cum_cc$cumulative_dams, gradient_cum_cc$site)
+    lookup[x]
+  }) +
+  labs(title = "Coal Creek",
+    x = "Cumulative dam count",
+    y = expression(Delta * "lc-excess/" * Delta * "cumulative dam count (" * "\u2030" * ")/m")
+  ) +
+  theme_bw(base_size = 12) +
+  theme(plot.title = element_text(face = "bold", size = 14),
+    strip.text = element_text(face = "bold", size = 11),
+    strip.background = element_rect(fill = "gray85", color = NA),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "none" # Removes the now empty legend box
+  )
+
+plot6_3
+
+```
+
+```{r}
+#| label: figure-6-cum-dams
+#| message: false
+#| warning: false
+
+figure_6 <- plot6_2 + plot6_3
+
+
+figure_6
+
+
+```
+
+
+
+
+
+
+
+
+
 
 

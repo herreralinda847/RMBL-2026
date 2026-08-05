@@ -360,7 +360,7 @@ ggplot(trail_creek, aes(x = date, y = lc_excess, color = site)) +
 ggplot(isco_data, aes(x = avg_water_level, y = lc_excess)) +
   geom_point(aes(color = avg_temp), size = 2.5, alpha = 0.8) +
   geom_smooth(method = "lm", color = "black", linetype = "dotted", se = FALSE) +
-  scale_color_viridis_c(option = "plasma") +  # Beautiful temperature gradient
+  scale_color_viridis_c(option = "plasma") +
   labs(
     title = "Water Level vs. Evaporation Indicator (lc-excess)",
     x = "Average Water Level",
@@ -549,7 +549,7 @@ ggplot(gradient_cum_tc, aes(x = site, y = gradient, fill = site)) +
   }) +
   labs(
   x = "Cumulative dam count",
-  y = expression(Delta * "lc-excess/" * Delta * "cumulative dam length (" * "\u2030" * ")/m")
+  y = expression(Delta * "lc-excess/" * Delta * "cumulative dam count (" * "\u2030" * ")/m")
 ) +
   theme_bw(base_size = 12) +
   theme(

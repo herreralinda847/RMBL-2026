@@ -302,7 +302,7 @@ ggplot(gradient_cum_cc, aes(x = site, y = gradient, fill = site)) +
   }) +
   labs(
     x = "Cumulative dam count",
-    y = expression(Delta * "lc-excess/" * Delta * "cumulative dam length (" * "\u2030" * ")/m")
+    y = expression(Delta * "lc-excess/" * Delta * "cumulative dam count (" * "\u2030" * ")/m")
   ) +
   theme_bw(base_size = 12) +
   theme(
