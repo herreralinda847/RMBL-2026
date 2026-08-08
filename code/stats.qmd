@@ -356,21 +356,21 @@ var.test(lc_excess ~ period, data = discharge_utc_isco)
 #| message: false
 #| warning: false
 
-#------- Correlation od location and date  ---------------------- #
+# Correlation of the lc-excess & location
 
 compiled_isotope$date_c <- as.numeric(compiled_isotope$date) - mean(as.numeric(compiled_isotope$date))
 # center the date variable by subtracting its mean.
 
-model <- lmer(
+model.lmer <- lmer(
   lc_excess ~ location + date_c + # fixed effects: location differences + linear time trend
     (1|site), # random intercept: allows each site to have its own baseline lc-excess, accounting for
               # the ~36% of variance that's due to site-level clustering rather than location or date
   data = compiled_isotope)
 
-summary(model)
+summary(model.lmer)
 # centering doesn't affect slopes, only the intercept's ^ from the (1|site)
 
-anova(model)
+anova(model.lmer)
 
 
 ```
