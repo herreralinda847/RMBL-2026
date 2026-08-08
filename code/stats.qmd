@@ -29,6 +29,10 @@ library(dplyr)
 library(rstatix)
 library(ggpp)
 library(lmerTest)
+library(broom)
+library(broom.mixed)  
+library(purrr)
+library(gt)
 
 ```
 
@@ -361,18 +365,14 @@ var.test(lc_excess ~ period, data = discharge_utc_isco)
 compiled_isotope$date_c <- as.numeric(compiled_isotope$date) - mean(as.numeric(compiled_isotope$date))
 # center the date variable by subtracting its mean.
 
-model.lmer <- lmer(
-  lc_excess ~ location + date_c + # fixed effects: location differences + linear time trend
-    (1|site), # random intercept: allows each site to have its own baseline lc-excess, accounting for
-              # the ~36% of variance that's due to site-level clustering rather than location or date
-  data = compiled_isotope)
-
-summary(model.lmer)
+model_location <- lmer(lc_excess ~ location + date_c + (1 | site), data = compiled_isotope)
+# fixed effects: location differences + linear time trend
+# random intercept: allows each site to have its own baseline lc-excess, accounting for
+# the ~36% of variance that's due to site-level clustering rather than location or date
+summary(model_location)
 # centering doesn't affect slopes, only the intercept's ^ from the (1|site)
 
-anova(model.lmer)
-
-
+anova(model_location)
 ```
 
 ```{r}
@@ -381,9 +381,9 @@ anova(model.lmer)
 
 # the enrichment effect consistent across geologically distinct sites? This is a reach × creek interaction question. With only 3 creeks, a mixed model with creek as a random effect isn't well-powered (too few levels), so treat creek as fixed instead:
 
-model <- lmer(lc_excess ~ reach * creek + (1 | date), data = us_ds)
-summary(model)
-anova(model)
+model_reach <- lmer(lc_excess ~ reach * creek + (1 | date), data = us_ds)
+summary(model_reach)
+anova(model_reach)
 
 # the lmer() model is more powerful here because it pools information across all three creeks simultaneously rather than testing each in isolation, and it models lc_excess as continuous rather than throwing away magnitude information the way a rank-based test does. 
 
@@ -399,10 +399,267 @@ anova(model)
 
 # Trail Creek's interaction term is +1.02 (p = 0.053, right at the edge) — trending toward a larger upstream/downstream gap than Coal Creek, though not conventionally significant.
 
+```
+
+
+```{r}
+# =============================================================
+# Compile all statistical tests into publication-ready tables
+# =============================================================
+# NOTE: run this AFTER your existing stats.R script, so all model
+# objects (anova, model.1-18, discharge_*_isco tests, us_ds model, etc.)
+# already exist in your environment.
+
+# -------------------------------------------------------------
+# TABLE 1. Pairwise site comparisons (ANOVA + Tukey HSD)
+# -------------------------------------------------------------
+
+tukey_tidy <- tidy(TukeyHSD(anova)) %>%
+  select(comparison = contrast, diff = estimate,
+         lower = conf.low, upper = conf.high, p_adj = adj.p.value)
+
+aov_summary <- summary(anova)[[1]]
+
+f_stat <- aov_summary$`F value`[1]
+df1    <- aov_summary$Df[1]
+df2    <- aov_summary$Df[2]
+p_val  <- aov_summary$`Pr(>F)`[1]
+
+table1 <- tukey_tidy %>%
+  gt() %>%
+  tab_header(
+    title = "Table 1. Pairwise comparisons of lc-excess among sampling locations",
+    subtitle = "Tukey HSD following one-way ANOVA"
+  ) %>%
+  fmt_number(columns = c(diff, lower, upper), decimals = 2) %>%
+  fmt_number(columns = p_adj, decimals = 4) %>%
+  cols_label(
+    comparison = "Comparison", diff = "Mean diff.",
+    lower = "95% CI (lower)", upper = "95% CI (upper)", p_adj = "Adj. p"
+  ) %>%
+  gt::tab_source_note(
+    source_note = paste0(
+      "Overall ANOVA: F(", df1, ",", df2, ") = ", round(f_stat, 2), ", p < 0.001"
+    )
+  )
+
+table1
+# -------------------------------------------------------------
+# TABLE 2. Mixed model: lc-excess ~ location + date (site random effect)
+# -------------------------------------------------------------
+
+fixed_loc <- tidy(model_location, effects = "fixed") %>%
+  select(term, estimate, std.error, df, statistic, p.value)
+
+rand_loc <- tidy(model_location, effects = "ran_pars") %>%
+  select(group, term, estimate)
+
+table2 <- fixed_loc %>%
+  gt() %>%
+  tab_header(
+    title = "Table 2. Linear mixed-effects model of lc-excess",
+    subtitle = "Fixed effects: sampling location and date; random intercept: site"
+  ) %>%
+  fmt_number(columns = c(estimate, std.error, df, statistic), decimals = 3) %>%
+  fmt_number(columns = p.value, decimals = 4) %>%
+  cols_label(
+    term = "Term", estimate = "Estimate", std.error = "SE",
+    df = "df", statistic = "t", p.value = "p"
+  ) %>%
+  tab_source_note(
+    source_note = paste0(
+      "Random effect variance (site) = ",
+      round(rand_loc$estimate[rand_loc$group == "site"], 3),
+      "; N = ", nrow(compiled_isotope), " observations, ",
+      n_distinct(compiled_isotope$site), " sites"
+    )
+  )
+table2
+
+# -------------------------------------------------------------
+# TABLE 3. Spatial gradient regressions (lc-excess vs. distance /
+# cumulative dams / cumulative dam length), all creeks & dates
+# -------------------------------------------------------------
+
+gradient_models <- list(
+  list(model = model.1,  creek = "Trail Creek",   date = "6/24", predictor = "Stream distance (m)"),
+  list(model = model.2,  creek = "Trail Creek",   date = "6/30", predictor = "Stream distance (m)"),
+  list(model = model.3,  creek = "Trail Creek",   date = "7/15", predictor = "Stream distance (m)"),
+  list(model = model.4,  creek = "Coal Creek",    date = "6/23", predictor = "Stream distance (m)"),
+  list(model = model.5,  creek = "Coal Creek",    date = "7/7",  predictor = "Stream distance (m)"),
+  list(model = model.6,  creek = "Italian Creek", date = "7/1",  predictor = "Stream distance (m)"),
+  list(model = model.7,  creek = "Italian Creek", date = "7/16", predictor = "Stream distance (m)"),
+  list(model = model.8,  creek = "Italian Creek", date = "7/23", predictor = "Stream distance (m)"),
+  list(model = model.9,  creek = "Trail Creek",   date = "6/24", predictor = "Cumulative dams (n)"),
+  list(model = model.10, creek = "Trail Creek",   date = "6/30", predictor = "Cumulative dams (n)"),
+  list(model = model.11, creek = "Trail Creek",   date = "7/15", predictor = "Cumulative dams (n)"),
+  list(model = model.12, creek = "Coal Creek",    date = "6/23", predictor = "Cumulative dams (n)"),
+  list(model = model.13, creek = "Coal Creek",    date = "7/7",  predictor = "Cumulative dams (n)"),
+  list(model = model.14, creek = "Trail Creek",   date = "6/24", predictor = "Cumulative dam length (m)"),
+  list(model = model.15, creek = "Trail Creek",   date = "6/30", predictor = "Cumulative dam length (m)"),
+  list(model = model.16, creek = "Trail Creek",   date = "7/15", predictor = "Cumulative dam length (m)"),
+  list(model = model.17, creek = "Coal Creek",    date = "6/23", predictor = "Cumulative dam length (m)"),
+  list(model = model.18, creek = "Coal Creek",    date = "7/7",  predictor = "Cumulative dam length (m)")
+)
+
+extract_lm <- function(entry) {
+  m  <- entry$model
+  s  <- summary(m)
+  co <- coef(s)
+  tibble(
+    Predictor   = entry$predictor,
+    Creek       = entry$creek,
+    Date        = entry$date,
+    Intercept   = co[1, 1],
+    Slope       = co[2, 1],
+    SE          = co[2, 2],
+    R2          = s$r.squared,
+    p_value     = co[2, 4]
+  )
+}
+
+table3_df <- map_dfr(gradient_models, extract_lm)
+
+table3 <- table3_df %>%
+  gt(groupname_col = "Predictor", rowname_col = "Creek") %>%
+  tab_header(
+    title = "Table 3. Spatial gradient regressions of lc-excess",
+    subtitle = "lc-excess regressed against normalized stream distance, cumulative beaver dam count, and cumulative dam length, by creek and sampling date"
+  ) %>%
+  fmt_number(columns = c(Intercept, Slope, SE, R2), decimals = 3) %>%
+  fmt_number(columns = p_value, decimals = 4) %>%
+  cols_label(
+    Date = "Date", Intercept = "Intercept", Slope = "Slope",
+    SE = "SE (slope)", R2 = "R\u00b2", p_value = "p"
+  ) %>%
+  tab_options(row_group.as_column = FALSE)
+
+table3
+# -------------------------------------------------------------
+# TABLE 4. Discharge - lc-excess relationship, upstream vs downstream
+# -------------------------------------------------------------
+
+corr_us <- tidy(cor.test(discharge_utc_isco$discharge, discharge_utc_isco$lc_excess)) %>%
+  mutate(Reach = "Upstream")
+corr_ds <- tidy(cor.test(discharge_tc_isco$discharge, discharge_tc_isco$lc_excess)) %>%
+  mutate(Reach = "Downstream")
+
+lm_us <- tidy(lm(lc_excess ~ discharge, data = discharge_utc_isco)) %>%
+  filter(term == "discharge") %>% mutate(Reach = "Upstream")
+lm_ds <- tidy(lm(lc_excess ~ discharge, data = discharge_tc_isco)) %>%
+  filter(term == "discharge") %>% mutate(Reach = "Downstream")
+
+table4_df <- bind_rows(corr_us, corr_ds) %>%
+  select(Reach, r = estimate, conf.low, conf.high, corr_p = p.value, n = parameter) %>%
+  mutate(n = n + 2) %>%   # cor.test df = n - 2
+  left_join(
+    bind_rows(lm_us, lm_ds) %>% select(Reach, slope = estimate),
+    by = "Reach"
+  )
+
+table4 <- table4_df %>%
+  gt() %>%
+  tab_header(
+    title = "Table 4. Relationship between discharge and lc-excess",
+    subtitle = "Trail Creek ISCO stations, Pearson correlation and linear regression slope"
+  ) %>%
+  fmt_number(columns = c(r, conf.low, conf.high, slope), decimals = 3) %>%
+  fmt_number(columns = corr_p, decimals = 4) %>%
+  cols_label(
+    Reach = "Reach", r = "Pearson r", conf.low = "95% CI (lower)",
+    conf.high = "95% CI (upper)", corr_p = "p", n = "n", slope = "Regression slope"
+  )
+table4
+# -------------------------------------------------------------
+# TABLE 5. Pre- vs. post-peak flow lc-excess comparison
+# -------------------------------------------------------------
+
+period_summary <- discharge_utc_isco %>%
+  group_by(period) %>%
+  summarise(
+    n = n(), mean = mean(lc_excess, na.rm = TRUE),
+    sd = sd(lc_excess, na.rm = TRUE), median = median(lc_excess, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+test_results <- bind_rows(
+  tidy(t.test(lc_excess ~ period, data = discharge_utc_isco)) %>%
+    mutate(Test = "Welch two-sample t-test") %>%
+    select(Test, statistic, df = parameter, p.value),
+  tidy(wilcox.test(lc_excess ~ period, data = discharge_utc_isco)) %>%
+    mutate(Test = "Mann-Whitney U", df = NA_real_) %>%
+    select(Test, statistic, df, p.value),
+  tidy(var.test(lc_excess ~ period, data = discharge_utc_isco)) %>%
+    mutate(Test = "F test (equality of variance)") %>%
+    select(Test, statistic, df = num.df, p.value)
+)
+
+table5a <- period_summary %>%
+  gt() %>%
+  tab_header(title = "Table 5a. lc-excess summary statistics by flow period",
+             subtitle = "Upstream Trail Creek ISCO (peak flow: 5/14/2026)") %>%
+  fmt_number(columns = c(mean, sd, median), decimals = 3) %>%
+  cols_label(period = "Period", n = "n", mean = "Mean", sd = "SD", median = "Median")
+
+table5b <- test_results %>%
+  gt() %>%
+  tab_header(title = "Table 5b. Statistical tests, pre- vs. post-peak lc-excess") %>%
+  fmt_number(columns = c(statistic, df), decimals = 2) %>%
+  fmt_number(columns = p.value, decimals = 4) %>%
+  cols_label(Test = "Test", statistic = "Statistic", df = "df", p.value = "p")
+
+table5a
+
+table5b
+
+# -------------------------------------------------------------
+# TABLE 6. Upstream/downstream mixed model (reach x creek)
+# -------------------------------------------------------------
+
+fixed_reach <- tidy(model_reach, effects = "fixed") %>%
+  select(term, estimate, std.error, df, statistic, p.value)
+
+anova_reach <- tidy(anova(model_reach)) %>%
+  select(term, NumDF = NumDF, DenDF = DenDF, statistic, p.value)
+
+table6a <- fixed_reach %>%
+  gt() %>%
+  tab_header(title = "Table 6a. Fixed effects: lc-excess ~ reach * creek",
+             subtitle = "Random intercept: sampling date") %>%
+  fmt_number(columns = c(estimate, std.error, df, statistic), decimals = 3) %>%
+  fmt_number(columns = p.value, decimals = 4) %>%
+  cols_label(term = "Term", estimate = "Estimate", std.error = "SE",
+             df = "df", statistic = "t", p.value = "p")
+
+table6b <- anova_reach %>%
+  gt() %>%
+  tab_header(title = "Table 6b. Type III ANOVA, lc-excess ~ reach * creek") %>%
+  fmt_number(columns = c(NumDF, DenDF, statistic), decimals = 2) %>%
+  fmt_number(columns = p.value, decimals = 4) %>%
+  cols_label(term = "Term", NumDF = "Num. df", DenDF = "Den. df",
+             statistic = "F", p.value = "p")
+
+table6a 
+
+table6b
+
+# -------------------------------------------------------------
+# Save all tables (as individual Word-ready files)
+# -------------------------------------------------------------
+
+dir.create("tables", showWarnings = FALSE)
+gtsave(table1,  "tables/table1_tukey.docx")
+gtsave(table2,  "tables/table2_location_model.docx")
+gtsave(table3,  "tables/table3_gradient_models.docx")
+gtsave(table4,  "tables/table4_discharge.docx")
+gtsave(table5a, "tables/table5a_period_summary.docx")
+gtsave(table5b, "tables/table5b_period_tests.docx")
+gtsave(table6a, "tables/table6a_reach_creek_fixed.docx")
+gtsave(table6b, "tables/table6b_reach_creek_anova.docx")
+
 
 
 ```
-
 
 
 
