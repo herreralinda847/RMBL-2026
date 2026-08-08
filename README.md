@@ -28,6 +28,8 @@ library(patchwork)
 ├── code
 │   ├── all-sites-exploratory.pdf                          
 │   ├── all-sites-exploratory.qmd
+│   ├── stats.pdf                          
+│   ├── stats.qmd
 │   ├── trail-creek-exploratory.pdf
 │   ├── trail-creek-exploratory.qmd
 │   ├── coal-creek-exploratory.pdf                          
@@ -40,10 +42,15 @@ library(patchwork)
 ├── data
 │   ├── cc_gradient_data.csv
 │   ├── tc_gradient_data.csv
+│   ├── it_gradient_data.csv
 │   ├── compiled.csv
 │   ├── metadata.csv
+│   ├── hydrograph.csv
+│   ├── us_ds.csv
+│   ├── isco_discharge_lc.csv
 │   ├── trail_creek_compiled_ISCO.csv
 │   ├── Trail_Creek_WY2026_Streamflow.xlsx
+│   ├── UTC_WY2026_Streamflow.xlsx
 │   ├── Trail_Creek_2026-07-23-15.csv
 │   └── UTC_2026-07-23-15.csv 
 ├── images
@@ -56,7 +63,7 @@ The rendered figures-referenced is
 [here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/figures-referenced.pdf).
 
 The rendered figures-referenced is 
-[here](--).
+[here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/stats.pdf).
 
 The rendered all-sites-exploratory is 
 [here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/all-sites-exploratory.pdf).
