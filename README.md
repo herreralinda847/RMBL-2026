@@ -55,6 +55,9 @@ library(patchwork)
 The rendered figures-referenced is 
 [here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/figures-referenced.pdf).
 
+The rendered figures-referenced is 
+[here](--).
+
 The rendered all-sites-exploratory is 
 [here](https://github.com/herreralinda847/RMBL-2026/blob/main/code/all-sites-exploratory.pdf).
 

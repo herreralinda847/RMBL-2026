@@ -23,6 +23,7 @@ library(ggplot2)
 library(patchwork)
 library(ggpmisc) 
 library(ggsignif)
+library(gtsummary)
 library(dplyr)
 
 ```
@@ -941,7 +942,8 @@ plot6_1 <- ggplot(gradient_it_clean) +
   scale_x_continuous(
     breaks = distances_it$dist_m, 
     labels = distances_it$site
-  ) + 
+  ) +
+  ylim(-0.7, 0.3) +
   labs(
     title = "Italian Creek", 
     x = "Normalized stream distance (m)", 
@@ -987,6 +989,7 @@ plot6_2 <- ggplot(gradient_cum_tc, aes(x = site, y = gradient)) + # Removed fill
     lookup <- setNames(gradient_cum_tc$cumulative_dams, gradient_cum_tc$site)
     lookup[x]
   }) +
+    ylim(-0.7, 0.3) +
   labs(title = "Trail Creek", 
     x = "Cumulative dam count",
     y = expression(Delta * "lc-excess/" * Delta * "cumulative dam count (" * "\u2030" * ")/m")
@@ -1024,6 +1027,7 @@ plot6_3 <- ggplot(gradient_cum_cc, aes(x = site, y = gradient)) + # Removed fill
     lookup <- setNames(gradient_cum_cc$cumulative_dams, gradient_cum_cc$site)
     lookup[x]
   }) +
+    ylim(-0.7, 0.3) +
   labs(title = "Coal Creek",
     x = "Cumulative dam count",
     y = expression(Delta * "lc-excess/" * Delta * "cumulative dam count (" * "\u2030" * ")/m")
@@ -1046,7 +1050,7 @@ plot6_3
 #| message: false
 #| warning: false
 
-figure_6 <- plot6_2 + plot6_3
+figure_6 <- plot6_1 + plot6_2 + plot6_3
 
 
 figure_6

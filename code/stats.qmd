@@ -1,0 +1,408 @@
+---
+title: "stats"
+author: "Linda Herrera"
+format: pdf
+execute:
+  fig-format: png
+---
+
+## Packages
+
+```{r}
+#| label: packages
+#| message: false
+#| warning: false
+
+library(tidyr)
+library(tidyverse)
+library(here)
+library(janitor)
+library(viridis)
+library(wesanderson)
+library(lme4)
+library(ggplot2)
+library(patchwork)
+library(ggpmisc) 
+library(ggsignif)
+library(gtsummary)
+library(dplyr)
+library(rstatix)
+library(ggpp)
+library(lmerTest)
+
+```
+
+
+## Data 
+
+```{r}
+#| label: cleaning and wrangling
+#| message: false
+#| warning: false
+
+
+# Data Frame with ALL sites, TC (utc and tc isco's), CC, IT
+compiled_isotope <- read_csv(here("data", "compiled.csv"), show_col_types = FALSE) |> 
+  clean_names() |> # lowercase and underscores in column names
+  rename(sample = sample_name, # renaming columns to be shorter 
+         delta_d = processed_delta_d,
+         delta_d_std = processed_delta_d_stdev,
+         delta_o = processed_delta_18o,
+         delta_o_std = processed_delta_18o_stdev) |> 
+  mutate(date = mdy(date)) # telling r the date format
+
+# Trail Creek site order
+site_order <- c("tc_us", "tc_mid", "tc_ds", "tc_1", "tc_15", "tc_2", "tc_3") 
+
+# Trail Creek data
+trail_creek <- compiled_isotope |> 
+  filter(site %in% site_order) |> 
+  mutate(site = factor(site, levels = site_order)) |> 
+  arrange(site)
+
+# Coal Creek data
+coal_creek <- compiled_isotope |> 
+ filter(location %in% c("cc"))
+
+# Italian Creek data
+italian_creek <- compiled_isotope |> 
+  filter(location == "it")
+
+# Trail Creek ISCO data combined
+trail_creek_isco <- read_csv(here("data", "trail_creek_compiled_ISCO.csv")) |> 
+  clean_names() |> # lowercase and underscores in column names
+  rename(sample = sample_name, # renaming columns to be shorter 
+         delta_d = processed_delta_d,
+         delta_d_std = processed_delta_d_stdev,
+         delta_o = processed_delta_18o,
+         delta_o_std = processed_delta_18o_stdev) |> 
+  mutate(date = mdy(date))# telling r the date format
+
+# Upstream Trail Creek ISCO
+utc_isco <- trail_creek_isco |> 
+  filter(site == "utc_isco")
+
+# Downstream Trail Creek ISCO
+tc_isco <- trail_creek_isco |> 
+   filter(site == "tc_isco")
+
+# Trail Creek gradient data
+gradient_tc <- read_csv(here("data", "tc_gradient_data.csv"))
+
+# Coal Creek gradient data
+gradient_cc <- read_csv(here("data", "cc_gradient_data.csv"))
+
+# Italian Creek gradient data
+gradient_it <- read_csv(here("data", "it_gradient_data.csv"))
+
+# ALL Discharge data 
+discharge_isco <- read_csv(here("data", "isco_discharge_lc.csv")) |> 
+  mutate(
+    date = as.Date(date, format = "%m/%d/%Y"),
+    period = if_else(date < as.Date("2026-05-14"), "pre-peak", "post-peak") # before & after peak flow
+  )
+
+# Upstream Trail Creek ISCO
+discharge_utc_isco <- discharge_isco |> 
+  filter(isco %in% c("utc"))
+
+# Downstream Trail Creek ISCO
+discharge_tc_isco <- discharge_isco |> 
+  filter(isco %in% c("tc"))
+
+# Upstream and Downstream Trail Creek ISCO
+us_ds <- read_csv(here("data", "us_ds.csv")) |> 
+  mutate(
+    date = as.Date(date, format = "%m/%d/%Y"),
+    creek = case_when(
+      grepl("^cc", location) ~ "Coal Creek",
+      grepl("^it", location) ~ "Italian Creek",
+      location %in% c("utc", "tc") ~ "Trail Creek"),
+    reach = case_when(
+      location %in% c("cc-us", "it-us", "utc") ~ "upstream",
+      location %in% c("cc-ds", "it-ds", "tc") ~ "downstream"))
+
+# Summary stats per period (per reach, if you have upstream/downstream)
+discharge_stat <- discharge_isco |> 
+  group_by(period) |> # add reach here: group_by(reach, period)
+  summarise(
+    n = n(),
+    mean_lc = mean(lc_excess, na.rm = TRUE),
+    sd_lc = sd(lc_excess, na.rm = TRUE),
+    median_lc = median(lc_excess, na.rm = TRUE)
+  )
+
+
+```
+
+
+## Statistical Tests 
+```{r}
+#| label: anova-lc-excess-location
+#| message: false
+#| warning: false
+
+# ANOVA, 
+# lc-excess and location 
+anova <- aov(lc_excess ~ location, data = compiled_isotope)
+summary(anova)
+
+# TukeyHSD, compares every possible pair of group means
+TukeyHSD(anova)
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+# Trail Creek 
+# lc-excess & normalized stream distance
+
+# 6/24 - lc-excess & normalized stream distance
+model.1 <- lm(`lc-excess_6-24` ~ normalized_stream_distance_m, data = gradient_tc)
+summary(model.1)
+
+# 6/30 - lc-excess & normalized stream distance
+model.2 <- lm(`lc-excess_6-30` ~ normalized_stream_distance_m, data = gradient_tc)
+summary(model.2)
+
+# 7/15 - lc-excess & normalized stream distance
+model.3 <- lm(`lc-excess_7-15` ~ normalized_stream_distance_m, data = gradient_tc)
+summary(model.3)
+
+```
+
+
+
+```{r}
+#| message: false
+#| warning: false
+
+# Coal Creek 
+# lc-excess & normalized stream distance
+
+# 6/23 - lc-excess & normalized stream distance
+model.4 <- lm(`lc-excess_6-23` ~ normalized_stream_distance_m, data = gradient_cc)
+summary(model.4)
+
+# 7/7 - lc-excess & normalized stream distance
+model.5 <- lm(`lc-excess_7-7` ~ normalized_stream_distance_m, data = gradient_cc)
+summary(model.5)
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+# Italian Creek
+# lc-excess & normalized stream distance
+
+# 7/1 - lc-excess & normalized stream distance
+
+model.6 <- lm(`lc_excess_7_1` ~ normalized_stream_distance_m, data = gradient_it)
+summary(model.6)
+# 7/16 - lc-excess & normalized stream distance
+
+model.7 <- lm(`lc-excess_7_16` ~ normalized_stream_distance_m, data = gradient_it)
+summary(model.7)
+# 7/23 - lc-excess & normalized stream distance
+
+model.8 <- lm(`lc_excess_7_23` ~ normalized_stream_distance_m, data = gradient_it)
+summary(model.8)
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+# Trail Creek 
+# lc-excess & cumulative dams
+
+gradient_tc$cumulative_dams <- as.numeric(as.character(gradient_tc$cumulative_dams))
+
+# 6/24 - lc-excess & cumulative dams
+model.9 <- lm(`lc-excess_6-24` ~ cumulative_dams, data = gradient_tc)
+summary(model.9)
+
+# 6/30 - lc-excess & cumulative dams
+model.10 <-  lm(`lc-excess_6-30` ~ cumulative_dams, data = gradient_tc)
+summary(model.10)
+
+# 7/15 - lc-excess & cumulative dams
+model.11 <- lm(`lc-excess_7-15` ~ cumulative_dams, data = gradient_tc)
+summary(model.11)
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+# Coal Creek 
+# lc-excess & cumulative dams
+
+gradient_cc$cumulative_dams <- as.numeric(as.character(gradient_cc$cumulative_dams))
+
+# 6/23 - lc-excess & cumulative dams
+model.12 <-  lm(`lc-excess_6-23` ~ cumulative_dams, data = gradient_cc)
+summary(model.12)
+
+# 7/7 - lc-excess & cumulative dams
+model.13 <-  lm(`lc-excess_7-7` ~ cumulative_dams, data = gradient_cc)
+summary(model.13)
+
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+# Trail Creek 
+# lc-excess & cumulative dam length
+gradient_tc$cumulative_dam_length <- as.numeric(as.character(gradient_tc$cumulative_dam_length))
+
+# 6/24 - lc-excess & cumulative dam length
+model.14 <- lm(`lc-excess_6-24` ~ cumulative_dam_length, data = gradient_tc)
+summary(model.14)
+
+# 6/30 - lc-excess & cumulative dam length
+model.15 <-  lm(`lc-excess_6-30` ~ cumulative_dam_length, data = gradient_tc)
+summary(model.15)
+
+# 7/15 - lc-excess & cumulative dam length
+model.16 <- lm(`lc-excess_7-15` ~ cumulative_dam_length, data = gradient_tc)
+summary(model.16)
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+# Coal Creek 
+# lc-excess & cumulative dam length
+
+gradient_cc$cumulative_dam_length <- as.numeric(as.character(gradient_cc$cumulative_dam_length))
+
+# 6/23 - lc-excess & cumulative dam length
+model.17 <-  lm(`lc-excess_6-23` ~ cumulative_dam_length, data = gradient_cc)
+summary(model.17)
+
+# 7/7 - lc-excess & cumulative dam length
+model.18 <-  lm(`lc-excess_7-7` ~ cumulative_dam_length, data = gradient_cc)
+summary(model.18)
+
+```
+
+
+```{r}
+
+# Trail Creek ISCO's 
+# Correlation test of discharge and lc-excess
+
+# Downstream Trail Creek ISCO
+cor.test(discharge_tc_isco$discharge, discharge_tc_isco$lc_excess)
+
+# Upstream Trail Creek ISCO
+cor.test(discharge_utc_isco$discharge, discharge_utc_isco$lc_excess)
+
+
+# Downstream Trail Creek - lc-excess & discharge
+lm(lc_excess ~ discharge, data = discharge_tc_isco) 
+
+# Upstream Trail Creek - lc-excess & discharge
+lm(lc_excess ~ discharge, data = discharge_utc_isco)
+
+
+```
+
+
+
+```{r}
+
+# Visual check
+hist(discharge_utc_isco$lc_excess[discharge_utc_isco$period == "pre-peak"]) # skewed left
+hist(discharge_utc_isco$lc_excess[discharge_utc_isco$period == "post-peak"]) # normal distribution
+
+# Formal test (Shapiro-Wilk) - only reliable with reasonable sample size
+shapiro.test(discharge_utc_isco$lc_excess[discharge_utc_isco$period == "pre-peak"])
+shapiro.test(discharge_utc_isco$lc_excess[discharge_utc_isco$period == "post-peak"])
+
+# Parametric alternative (Welch's t-test, doesn't assume equal variance) - use if normal
+t.test(lc_excess ~ period, data = discharge_utc_isco)
+
+
+discharge_utc_isco |> 
+  group_by(period) |> 
+  summarise(
+    n = n(),
+    mean_lc = mean(lc_excess, na.rm = TRUE),
+    median_lc = median(lc_excess, na.rm = TRUE),
+    sd_lc = sd(lc_excess, na.rm = TRUE)
+  )
+
+var.test(lc_excess ~ period, data = discharge_utc_isco)
+```
+
+
+
+
+```{r}
+#| label: stat tests
+#| message: false
+#| warning: false
+
+#------- Correlation od location and date  ---------------------- #
+
+compiled_isotope$date_c <- as.numeric(compiled_isotope$date) - mean(as.numeric(compiled_isotope$date))
+# center the date variable by subtracting its mean.
+
+model <- lmer(
+  lc_excess ~ location + date_c + # fixed effects: location differences + linear time trend
+    (1|site), # random intercept: allows each site to have its own baseline lc-excess, accounting for
+              # the ~36% of variance that's due to site-level clustering rather than location or date
+  data = compiled_isotope)
+
+summary(model)
+# centering doesn't affect slopes, only the intercept's ^ from the (1|site)
+
+anova(model)
+
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+# the enrichment effect consistent across geologically distinct sites? This is a reach × creek interaction question. With only 3 creeks, a mixed model with creek as a random effect isn't well-powered (too few levels), so treat creek as fixed instead:
+
+model <- lmer(lc_excess ~ reach * creek + (1 | date), data = us_ds)
+summary(model)
+anova(model)
+
+# the lmer() model is more powerful here because it pools information across all three creeks simultaneously rather than testing each in isolation, and it models lc_excess as continuous rather than throwing away magnitude information the way a rank-based test does. 
+
+
+# What the model is actually telling you:
+# `reach` main effect (p = 7.8e-05): across all sites, upstream vs. downstream location matters a lot for lc-excess. Since "downstream" is the reference level and reachupstream = +1.90, upstream is consistently less negative (less evaporatively enriched) than downstream. This directly supports aim (i) — evaporative fractionation is measurably greater downstream of beaver structures.
+# `creek` main effect (p = 0.0073): the three creeks differ in baseline lc-excess overall, which isn't surprising given their distinct bedrock geology.
+# `reach:creek` interaction (p = 0.0056): this is the key term for aim (ii). It's significant, meaning the size of the upstream-downstream shift is not the same at all three sites. 
+# Looking at the coefficients:
+# Italian Creek's interaction term is −1.11 (p = 0.041) — the upstream/downstream gap is smaller there than at Coal Creek. That's a sensible result: 
+
+# Italian Creek is your undammed control, so a weaker reach effect there strengthens your case that beaver activity (not just any upstream/downstream geographic difference) is driving the enrichment.
+
+# Trail Creek's interaction term is +1.02 (p = 0.053, right at the edge) — trending toward a larger upstream/downstream gap than Coal Creek, though not conventionally significant.
+
+
+
+```
+
+
+
+
