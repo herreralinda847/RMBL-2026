@@ -135,11 +135,20 @@ isco_data <- merge(
   by.y = c("location", "date") # matching columns in compiled_isotope
 )
 
-discharge_tc_isco <- read_csv(here("data", "discharge_tc_isco.csv"))
+# ALL Discharge data 
+discharge_isco <- read_csv(here("data", "isco_discharge_lc.csv")) |> 
+  mutate(
+    date = as.Date(date, format = "%m/%d/%Y"),
+    period = if_else(date < as.Date("2026-05-14"), "pre-peak", "post-peak") # before & after peak flow
+  )
 
-discharge_utc_isco <- read_csv(here("data", "discharge_utc_isco.csv"))
+# Upstream Trail Creek ISCO
+discharge_utc_isco <- discharge_isco |> 
+  filter(isco %in% c("utc"))
 
-discharge_isco <- read_csv(here("data", "isco_discharge_lc.csv"))
+# Downstream Trail Creek ISCO
+discharge_tc_isco <- discharge_isco |> 
+  filter(isco %in% c("tc"))
 
 hydrograph <- read_csv(here("data", "hydrograph.csv")) |> 
   mutate(date = mdy(date)) # telling r the date format
@@ -887,7 +896,7 @@ ggplot(data = hydrograph,
 
 
 slope <- 0.01333
-intercept <- 0.08
+intercept <- 0.10
 
 ggplot() +
   # hydrograph

@@ -55,6 +55,15 @@ compiled_isotope <- read_csv(here("data", "compiled.csv"), show_col_types = FALS
          delta_o_std = processed_delta_18o_stdev) |> 
   mutate(date = mdy(date)) # telling r the date format
 
+river_reach <- compiled_isotope |>
+  filter(!site %in% c("utc_isco", "tc_isco")) |>
+  mutate(site = factor(site, levels = c(
+    "tc_us", "tc_mid", "tc_ds", "tc_1", "tc_15", "tc_2", "tc_3",
+    "coal_1", "coal_2", "coal_3", "coal_4", "coal_5", "coal_6",
+    "italian_1", "italian_2", "italian_3", "italian_4", "italian_5"
+  ))) |>
+  arrange(site)
+  
 # Trail Creek site order
 site_order <- c("tc_us", "tc_mid", "tc_ds", "tc_1", "tc_15", "tc_2", "tc_3") 
 
@@ -135,6 +144,7 @@ discharge_stat <- discharge_isco |>
     sd_lc = sd(lc_excess, na.rm = TRUE),
     median_lc = median(lc_excess, na.rm = TRUE)
   )
+
 
 
 ```
@@ -403,12 +413,51 @@ anova(model_reach)
 
 
 ```{r}
+
+lc_stat <- river_reach |> 
+  group_by(location) |> 
+  summarise(
+    n = n(),
+    mean_lc = mean(lc_excess, na.rm = TRUE),
+    sd_lc = sd(lc_excess, na.rm = TRUE),
+    median_lc = median(lc_excess, na.rm = TRUE)
+  ) |>
+  mutate(across(where(is.numeric), ~ round(.x, 3)))
+
+table7 <- lc_stat |>
+  rename(
+    Location = location,
+    N = n,
+    `Mean (‰)` = mean_lc,
+    `SD (‰)` = sd_lc,
+    `Median (‰)` = median_lc
+  ) |>
+  gt() |>
+  tab_header(
+    title = "Table 7. Descriptive statistics of lc-excess by sampling location"
+  ) |>
+  cols_align(align = "center", columns = everything()) |>
+  cols_align(align = "left", columns = Location) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |>
+  tab_options(
+    table.font.size = px(13),
+    heading.title.font.size = px(13),
+    column_labels.background.color = "#f2f2f2"
+  )
+
+
+```
+
+
+
+
+```{r}
 # =============================================================
 # Compile all statistical tests into publication-ready tables
 # =============================================================
-# NOTE: run this AFTER your existing stats.R script, so all model
-# objects (anova, model.1-18, discharge_*_isco tests, us_ds model, etc.)
-# already exist in your environment.
 
 # -------------------------------------------------------------
 # TABLE 1. Pairwise site comparisons (ANOVA + Tukey HSD)
@@ -643,6 +692,19 @@ table6a
 
 table6b
 
+
+table7 <- lc_stat |>
+  rename(Location = location, N = n, `Mean (‰)` = mean_lc, `SD (‰)` = sd_lc, `Median (‰)` = median_lc) |>
+  gt() |>
+  tab_header(
+    title = "Table 7. Descriptive statistics of lc-excess by sampling location") |>
+  cols_align(align = "center", columns = everything()) |>
+  cols_align(align = "left", columns = Location)
+
+table7
+
+
+
 # -------------------------------------------------------------
 # Save all tables (as individual Word-ready files)
 # -------------------------------------------------------------
@@ -656,7 +718,7 @@ gtsave(table5a, "tables/table5a_period_summary.docx")
 gtsave(table5b, "tables/table5b_period_tests.docx")
 gtsave(table6a, "tables/table6a_reach_creek_fixed.docx")
 gtsave(table6b, "tables/table6b_reach_creek_anova.docx")
-
+gtsave(table7, "tables/table7_statistics_river_reach.docx")
 
 
 ```
