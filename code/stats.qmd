@@ -145,6 +145,10 @@ discharge_stat <- discharge_isco |>
     median_lc = median(lc_excess, na.rm = TRUE)
   )
 
+sontek <- read_csv(here("data", "sontek-cc-it.csv"), show_col_types = FALSE) |> 
+  clean_names() |> 
+  filter(!is.na(site)) |> 
+  separate(site, into = c("creek", "site_num"), sep = "-", remove = FALSE, convert = TRUE)
 
 
 ```
@@ -623,7 +627,7 @@ table4
 # TABLE 5. Pre- vs. post-peak flow lc-excess comparison
 # -------------------------------------------------------------
 
-period_summary <- discharge_utc_isco %>%
+period_summary <- discharge_isco %>%
   group_by(period) %>%
   summarise(
     n = n(), mean = mean(lc_excess, na.rm = TRUE),
@@ -632,7 +636,7 @@ period_summary <- discharge_utc_isco %>%
   )
 
 test_results <- bind_rows(
-  tidy(t.test(lc_excess ~ period, data = discharge_utc_isco)) %>%
+  tidy(t.test(lc_excess ~ period, data = discharge_isco)) %>%
     mutate(Test = "Welch two-sample t-test") %>%
     select(Test, statistic, df = parameter, p.value),
   tidy(wilcox.test(lc_excess ~ period, data = discharge_utc_isco)) %>%
@@ -646,7 +650,7 @@ test_results <- bind_rows(
 table5a <- period_summary %>%
   gt() %>%
   tab_header(title = "Table 5a. lc-excess summary statistics by flow period",
-             subtitle = "Upstream Trail Creek ISCO (peak flow: 5/14/2026)") %>%
+             subtitle = "Upstream and Downstream Trail Creek ISCO (peak flow: 5/14/2026)") %>%
   fmt_number(columns = c(mean, sd, median), decimals = 3) %>%
   cols_label(period = "Period", n = "n", mean = "Mean", sd = "SD", median = "Median")
 
@@ -703,6 +707,39 @@ table7 <- lc_stat |>
 
 table7
 
+## Table 8
+q_paired <- sontek %>%
+  group_by(creek, date) %>%
+  filter(site_num == min(site_num) | site_num == max(site_num)) %>%
+  mutate(position = ifelse(site_num == min(site_num), "upstream", "downstream")) %>%
+  ungroup() %>%
+  select(date, creek, position, q_cfs) %>%
+  distinct(date, creek, position, .keep_all = TRUE) %>%  # in case of ties
+  pivot_wider(names_from = position, values_from = q_cfs) %>%
+  mutate(
+    diff_cfs = downstream - upstream,
+    pct_change = (downstream - upstream) / upstream * 100
+  ) %>%
+  drop_na(upstream, downstream)
+
+q_paired
+
+# gt table for the paper
+table8 <- q_paired |> 
+  arrange(creek, date) |> 
+  gt() |> 
+  fmt_number(columns = c(upstream, downstream, diff_cfs, pct_change), decimals = 3) |> 
+  cols_label(
+    date = "Date",
+    creek = "Creek",
+    upstream = "Upstream Q (cfs)",
+    downstream = "Downstream Q (cfs)",
+    diff_cfs = "Difference (cfs)",
+    pct_change = "% Change"
+  ) |> 
+  tab_header(title = "Table 8. Paired discharge comparison, upstream vs. downstream sites by creek")
+
+table8
 
 
 # -------------------------------------------------------------
@@ -719,6 +756,7 @@ gtsave(table5b, "tables/table5b_period_tests.docx")
 gtsave(table6a, "tables/table6a_reach_creek_fixed.docx")
 gtsave(table6b, "tables/table6b_reach_creek_anova.docx")
 gtsave(table7, "tables/table7_statistics_river_reach.docx")
+gtsave(table8, "tables/table8_discharge_cc_it.docx")
 
 
 ```

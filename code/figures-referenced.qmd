@@ -152,6 +152,16 @@ discharge_tc_isco <- discharge_isco |>
 
 hydrograph <- read_csv(here("data", "hydrograph.csv")) |> 
   mutate(date = mdy(date)) # telling r the date format
+
+
+sontek <- read_csv(here("data", "sontek-cc-it.csv"), show_col_types = FALSE) |> 
+  clean_names() |> 
+  filter(!is.na(site)) |> 
+  separate(site, into = c("creek", "site_num"), sep = "-", remove = FALSE, convert = TRUE)
+
+manual_discharge <- read_csv(here("data", "manual_discharge_tc.csv")) |> 
+  clean_names() |> 
+  mutate(date = mdy(date))
   
 ```
 
@@ -874,8 +884,7 @@ ggplot(data = hydrograph,
   geom_line(linewidth = 1) +
   scale_color_manual(
     values = c("tc" = "dodgerblue", "utc" = "orangered2"),
-    labels = c( "tc" = "Trail Creek", "utc" = "Upper Trail Creek")
-  ) +
+    labels = c( "tc" = "Trail Creek", "utc" = "Upper Trail Creek")) +
   labs(title = "Discharge over Time",
        x = "Date",
        y = "Discharge (cfs)",
@@ -998,10 +1007,10 @@ plot6_2 <- ggplot(gradient_cum_tc, aes(x = site, y = gradient)) + # Removed fill
     lookup <- setNames(gradient_cum_tc$cumulative_dams, gradient_cum_tc$site)
     lookup[x]
   }) +
-    ylim(-0.7, 0.3) +
+  ylim(-0.25, 0.25) +
   labs(title = "Trail Creek", 
     x = "Cumulative dam count",
-    y = expression(Delta * "lc-excess/" * Delta * "cumulative dam count (" * "\u2030" * ")/m")
+    y = expression(Delta * "lc-excess/" * Delta * "cumulative dam count ((" * "\u2030" * ")/dam)")
   ) +
   theme_bw(base_size = 12) +
   theme(plot.title = element_text(face = "bold", size = 14),
@@ -1036,10 +1045,10 @@ plot6_3 <- ggplot(gradient_cum_cc, aes(x = site, y = gradient)) + # Removed fill
     lookup <- setNames(gradient_cum_cc$cumulative_dams, gradient_cum_cc$site)
     lookup[x]
   }) +
-    ylim(-0.7, 0.3) +
+    ylim(-0.25, 0.25) +
   labs(title = "Coal Creek",
     x = "Cumulative dam count",
-    y = expression(Delta * "lc-excess/" * Delta * "cumulative dam count (" * "\u2030" * ")/m")
+    y = expression(Delta * "lc-excess/" * Delta * "cumulative dam count ((" * "\u2030" * ")/dam)")
   ) +
   theme_bw(base_size = 12) +
   theme(plot.title = element_text(face = "bold", size = 14),
@@ -1059,7 +1068,7 @@ plot6_3
 #| message: false
 #| warning: false
 
-figure_6 <- plot6_1 + plot6_2 + plot6_3
+figure_6 <- plot6_2 + plot6_3
 
 
 figure_6
@@ -1067,10 +1076,166 @@ figure_6
 
 ```
 
+```{r}
+
+sontek_plot <- sontek %>%
+  filter(site %in% c("CC-1", "CC-6", "IT-1", "IT-5")) %>%
+  mutate(
+    creek_label = case_when(
+      site %in% c("CC-1", "CC-6") ~ "Coal Creek",
+      site %in% c("IT-1", "IT-5") ~ "Italian Creek"
+    ),
+    position = case_when(
+      site %in% c("CC-1", "IT-1") ~ "Upstream",
+      site %in% c("CC-6", "IT-5") ~ "Downstream"
+    ),
+    date = as.Date(date, format = "%m/%d/%y"),   # adjust format if needed, or skip if already Date
+    date_label = factor(format(date, "%m/%d/%y"), levels = unique(format(sort(date), "%m/%d/%y")))
+  )
+
+ggplot(sontek_plot, aes(x = date_label, y = q_cfs, color = position)) +
+  geom_point(size = 3, position = position_dodge(width = 0.4)) +
+  geom_errorbar(
+    aes(ymin = q_cfs - error, ymax = q_cfs + error),
+    width = 0.2,
+    position = position_dodge(width = 0.4)
+  ) +
+  facet_wrap(~ creek_label, scales = "free_x") +
+  scale_color_manual(values = c("Upstream" = "#2166AC", "Downstream" = "#B2182B")) +
+  labs(
+    title = "Upstream vs. Downstream Discharge by Sampling Date",
+    x = "Sampling Date",
+    y = "Discharge (cfs)",
+    color = "Position"
+  ) +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+    strip.text = element_text(face = "bold", size = 12),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
+
+
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+manual_discharge_plot <- manual_discharge %>%
+  mutate(site = recode(site, "TC-ISCO" = "tc", "UTC-ISCO" = "utc")) %>%
+  filter(date <= as.Date("2026-07-16"))
+
+ggplot(data = hydrograph, 
+       aes(x = date, 
+           y = discharge, 
+           color = site, 
+           group = site)) +
+  geom_point(size = 0.8, 
+             alpha = 0.8) +
+  geom_line(linewidth = 1) +
+  # new layer: manual discharge overlay
+  geom_point(data = manual_discharge_plot,
+             aes(x = date, y = discharge, color = site),
+             shape = 20, size = 2.5, stroke = 1, alpha = 0.6,
+             inherit.aes = FALSE) +
+  scale_color_manual(
+    values = c("tc" = "dodgerblue", "utc" = "orangered2"),
+    labels = c("tc" = "Trail Creek", "utc" = "Upper Trail Creek")
+  ) +
+  labs(title = "Discharge over Time",
+       x = "Date",
+       y = "Discharge (cfs)",
+       color = "Site") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom")
+
+
+
+```
+
+```{r}
+
+manual_discharge_plot <- manual_discharge %>%
+  mutate(site = recode(site, "TC-ISCO" = "tc", "UTC-ISCO" = "utc")) %>%
+  filter(date <= as.Date("2026-07-16"))
+
+ggplot(data = hydrograph, 
+       aes(x = date, 
+           y = discharge, 
+           color = site, 
+           group = site)) +
+  geom_point(size = 0.8, 
+             alpha = 0.8) +
+  geom_line(linewidth = 1) +
+  # error bars for manual discharge points
+  geom_errorbar(data = manual_discharge_plot,
+                aes(x = date, 
+                    ymin = discharge - error, 
+                    ymax = discharge + error,
+                    color = site),
+                width = 0.5,
+                inherit.aes = FALSE) +
+  # manual discharge overlay
+  geom_point(data = manual_discharge_plot,
+             aes(x = date, y = discharge, color = site),
+             shape = 20, size = 2.5, stroke = 1, alpha = 0.6,
+             inherit.aes = FALSE) +
+  scale_color_manual(
+    values = c("tc" = "dodgerblue", "utc" = "orangered2"),
+    labels = c("tc" = "Trail Creek", "utc" = "Upper Trail Creek")
+  ) +
+  labs(title = "Discharge over Time",
+       x = "Date",
+       y = "Discharge (cfs)",
+       color = "Site") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom")
+
+
+```
+
+
+```{r}
+manual_discharge_plot <- manual_discharge %>%
+  mutate(site = recode(site, "TC-ISCO" = "tc", "UTC-ISCO" = "utc")) %>%
+  filter(date <= as.Date("2026-07-16"))
+
+ggplot(data = hydrograph, 
+       aes(x = date, y = discharge, color = site, group = site)) +
+  geom_point(size = 0.8, alpha = 0.8) +
+  geom_line(linewidth = 1) +
+  # error bars for manual discharge (error is % of discharge)
+  geom_errorbar(data = manual_discharge_plot,
+                aes(x = date, 
+                    ymin = discharge - (discharge * error / 100), 
+                    ymax = discharge + (discharge * error / 100),
+                    color = site),
+                width = 1,
+                inherit.aes = FALSE) +
+  # manual discharge overlay
+  geom_point(data = manual_discharge_plot,
+             aes(x = date, y = discharge, color = site),
+             shape = 20, size = 3.0, stroke = 1, alpha = 0.6,
+             inherit.aes = FALSE) +
+  scale_color_manual(
+    values = c("tc" = "dodgerblue", "utc" = "orangered2"),
+    labels = c("tc" = "Trail Creek", "utc" = "Upper Trail Creek")
+  ) +
+  labs(title = "Discharge over Time", x = "Date", y = "Discharge (cfs)", color = "Site") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom")
 
 
 
 
+```
 
 
 
